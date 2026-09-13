@@ -50,7 +50,7 @@ class BookingCurve:
     per_route: dict = field(default_factory=dict)
 
     def value(self, dtd, route: str | None = None) -> np.ndarray:
-        dtd = np.asarray(dtd, dtype=float).clip(0, 119)
+        dtd = np.asarray(dtd, dtype=float).clip(0, 180)
         mult = self.per_route.get(route, self.multiplier)
         # piecewise-linear interpolation between bucket midpoints
         return np.interp(dtd, self.bucket_mid, mult)

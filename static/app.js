@@ -347,10 +347,11 @@ async function runSearch() {
 
     if (TRIP === "oneway") {
       const legs = filterLegs(qO.quotes, today, dd, null);
+      const msg1 = legs.length ? "" : emptyReason(qO, dd, `${o} → ${d}`, "outbound");
       $("#results").querySelectorAll("h3")[0].textContent = "Cheapest right now";
       $("#results").querySelectorAll("h3")[1].textContent = "Predicted cheapest by departure";
-      renderLegs($("#list-now"), [...legs].sort((a, b) => a.fare - b.fare).slice(0, 12), false, qO, o, d);
-      renderLegs($("#list-future"), [...legs].sort((a, b) => a.predicted_min - b.predicted_min).slice(0, 12), true, qO, o, d);
+      renderLegs($("#list-now"), [...legs].sort((a, b) => a.fare - b.fare).slice(0, 12), false, qO, o, d, msg1);
+      renderLegs($("#list-future"), [...legs].sort((a, b) => a.predicted_min - b.predicted_min).slice(0, 12), true, qO, o, d, msg1);
     } else {
       const qI = await api(`/api/quotes?origin=${d}&dest=${o}`);
       if (qI.error) { $("#search-err").textContent = qI.error; return; }
@@ -358,6 +359,8 @@ async function runSearch() {
         .sort((a, b) => a.fare - b.fare).slice(0, 40);
       const ins = filterLegs(qI.quotes, today, rd, dd || today)
         .sort((a, b) => a.fare - b.fare).slice(0, 40);
+      const msg = !outs.length ? emptyReason(qO, dd, `${o} → ${d}`, "outbound")
+                : !ins.length ? emptyReason(qI, rd, `${d} → ${o}`, "return") : "";
       const combos = [];
       for (const ol of outs) for (const il of ins) {
         if (dayDiff(il.flight_date, ol.flight_date) < 1) continue;
@@ -374,8 +377,8 @@ async function runSearch() {
       }
       $("#results").querySelectorAll("h3")[0].textContent = "Cheapest round trips right now";
       $("#results").querySelectorAll("h3")[1].textContent = "Predicted cheapest if you time the purchase";
-      renderCombos($("#list-now"), combos.slice(0, 12), false, qO, qI, o, d);
-      renderCombos($("#list-future"), [...top].sort((a, b) => a.predicted_min - b.predicted_min).slice(0, 12), true, qO, qI, o, d);
+      renderCombos($("#list-now"), combos.slice(0, 12), false, qO, qI, o, d, msg);
+      renderCombos($("#list-future"), [...top].sort((a, b) => a.predicted_min - b.predicted_min).slice(0, 12), true, qO, qI, o, d, msg);
     }
   } catch (e) { $("#search-err").textContent = String(e); }
 }
@@ -385,9 +388,15 @@ function selectRow(li) {
   li.setAttribute("aria-selected", "true");
 }
 
-function renderLegs(ul, items, future, qO, o, d) {
+function renderLegs(ul, items, future, qO, o, d, msg) {
   ul.innerHTML = "";
-  if (!items.length) { ul.innerHTML = "<li class='f-note'>no flights in window</li>"; return; }
+  if (!items.length) {
+    const li = document.createElement("li");
+    li.className = "f-note";
+    li.textContent = msg || "no flights in window";
+    ul.appendChild(li);
+    return;
+  }
   for (const f of items) {
     const li = document.createElement("li");
     li.tabIndex = 0; li.setAttribute("role", "button");
@@ -416,9 +425,23 @@ function renderLegs(ul, items, future, qO, o, d) {
   }
 }
 
-function renderCombos(ul, items, future, qO, qI, o, d) {
+function emptyReason(q, dateStr, legName, legLabel) {
+  const last = q.quotes.length ? q.quotes[q.quotes.length - 1].flight_date : null;
+  if (dateStr && last && dayDiff(dateStr, last) > 3) {
+    return `No ${legLabel} fares around ${shortDate(dateStr)} — ${legName} is currently on sale up to ${shortDate(last)}. Try an earlier date.`;
+  }
+  return `No ${legLabel} fares (${legName}) within ±3 days of ${dateStr ? shortDate(dateStr) : "the window"}.`;
+}
+
+function renderCombos(ul, items, future, qO, qI, o, d, msg) {
   ul.innerHTML = "";
-  if (!items.length) { ul.innerHTML = "<li class='f-note'>no combinations in window</li>"; return; }
+  if (!items.length) {
+    const li = document.createElement("li");
+    li.className = "f-note";
+    li.textContent = msg || "no combinations in window";
+    ul.appendChild(li);
+    return;
+  }
   for (const c of items) {
     const li = document.createElement("li");
     li.tabIndex = 0; li.setAttribute("role", "button");

@@ -47,7 +47,9 @@ for _od, _spec in list(ROUTES.items()):
         ROUTES[_rev] = _spec
 
 # Observation grid: days-to-departure at which each flight's fare is "seen".
-DTD_GRID = np.arange(1, 91)  # daily quotes out to 90 days, like real scraped data
+# Quote horizon: daily quotes to 90 days out, then every 3rd day to 180
+# (fares go on sale well before a daily tracker would poll them daily).
+DTD_GRID = np.r_[np.arange(1, 91), np.arange(93, 181, 3)]
 
 AIRLINE_NAMES = {
     "AA": "American", "DL": "Delta", "UA": "United", "B6": "JetBlue",

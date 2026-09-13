@@ -115,6 +115,6 @@ def test_quotes_endpoint(store, client):
               "best_buy_date", "verdict"):
         assert k in row
     assert row["predicted_min"] <= row["fare"] + 0.01
-    assert len(q["curve"]) == 121 and q["sigma"]
+    assert len(q["curve"]) == 181 and q["sigma"]
     r = client.get("/api/quotes?origin=SYD&dest=LHR")
     assert r.status_code == 200 and "error" not in r.json()
