@@ -13,6 +13,14 @@ import numpy as np
 import pandas as pd
 
 REF_DTD_LO, REF_DTD_HI = 21, 45  # reference booking window for the daily index
+
+# Forecast-model configuration. Chosen on the validation split (2025) by
+# scripts/sweep.py -- see data/sweep_results.json; test (2026) scored once.
+MODEL_CONFIG = {
+    "n_harm": 2,          # annual Fourier harmonics
+    "use_trend": False,   # linear trend extrapolates noise on short windows
+    "half_life_days": 730,  # recency weighting: a 2-year-old obs counts half
+}
 DTD_BUCKETS = [0, 2, 4, 6, 9, 13, 18, 24, 31, 40, 52, 67, 83, 120]
 
 
@@ -48,22 +56,23 @@ class BookingCurve:
         return np.interp(dtd, self.bucket_mid, mult)
 
 
-def fit_booking_curve(df: pd.DataFrame) -> BookingCurve:
+def fit_booking_curve(df: pd.DataFrame, buckets=None) -> BookingCurve:
+    buckets = buckets or DTD_BUCKETS
     d = df[(df["dtd"] >= 0) & (df["dtd"] < 120)].copy()
     d["logf"] = np.log(d["fare"])
     d["logf_dm"] = d["logf"] - d.groupby(["series", "flight_date"])["logf"].transform("mean")
-    d["bucket"] = np.digitize(d["dtd"], DTD_BUCKETS[1:-1])
+    d["bucket"] = np.digitize(d["dtd"], buckets[1:-1])
 
     mids = []
-    for i in range(len(DTD_BUCKETS) - 1):
-        mids.append(0.5 * (DTD_BUCKETS[i] + DTD_BUCKETS[i + 1]))
+    for i in range(len(buckets) - 1):
+        mids.append(0.5 * (buckets[i] + buckets[i + 1]))
     mids = np.array(mids)
 
     def curve_for(sub: pd.DataFrame) -> np.ndarray:
         eff = sub.groupby("bucket")["logf_dm"].mean()
         eff = eff.reindex(range(len(mids)))
         eff = eff.interpolate(limit_direction="both").to_numpy()
-        ref_bucket = int(np.digitize(30, DTD_BUCKETS[1:-1]))
+        ref_bucket = int(np.digitize(30, buckets[1:-1]))
         return np.exp(eff - eff[ref_bucket])
 
     global_curve = curve_for(d)
@@ -71,12 +80,12 @@ def fit_booking_curve(df: pd.DataFrame) -> BookingCurve:
     for route, sub in d.groupby("route"):
         if sub["flight_date"].nunique() >= 60:
             per_route[route] = curve_for(sub)
-    return BookingCurve(DTD_BUCKETS, mids, global_curve, per_route)
+    return BookingCurve(buckets, mids, global_curve, per_route)
 
 
 # ------------------------------------------------------------- daily fare index
 
-def daily_index(df: pd.DataFrame, curve: BookingCurve) -> pd.DataFrame:
+def daily_index(df: pd.DataFrame, curve: BookingCurve, smooth: int = 7) -> pd.DataFrame:
     """One row per (series, flight_date): booking-curve-normalised median fare.
     This is the 1-day-granularity series everything downstream uses."""
     d = df[(df["dtd"] >= 0) & (df["dtd"] < 120)].copy()
@@ -85,11 +94,25 @@ def daily_index(df: pd.DataFrame, curve: BookingCurve) -> pd.DataFrame:
              ["norm_fare"].median().rename("fare").reset_index())
     idx = idx.sort_values(["series", "flight_date"])
     idx["fare_7d"] = (idx.groupby("series")["fare"]
-                        .transform(lambda s: s.rolling(7, min_periods=3, center=True).mean()))
+                        .transform(lambda s: s.rolling(smooth, min_periods=max(2, smooth // 2),
+                                                       center=True).mean()))
     return idx
 
 
 # --------------------------------------------------------- per-series regression
+
+def make_oil_term(oil: pd.Series, lag_days: int, start: pd.Timestamp,
+                  end: pd.Timestamp, freeze_after: pd.Timestamp) -> pd.Series:
+    """log(30d-smoothed oil) shifted by the pass-through lag, for use as a
+    regressor indexed by flight_date. Oil after `freeze_after` is unknown at
+    prediction time, so it is held at its last observed value -- no lookahead."""
+    days = pd.date_range(start - pd.Timedelta(days=lag_days + 120), end, freq="D")
+    o = oil.reindex(days).ffill()
+    o = o.where(o.index <= freeze_after).ffill()
+    sm = np.log(o.rolling(30, min_periods=5).mean())
+    term = sm.shift(lag_days, freq="D").reindex(pd.date_range(start, end, freq="D"))
+    return term.ffill().bfill()
+
 
 @dataclass
 class SeriesModel:
@@ -100,8 +123,19 @@ class SeriesModel:
     n: int
     t0: pd.Timestamp
     dow_means: np.ndarray
+    oil_term: pd.Series | None = None
+    oil_mean: float = 0.0
+    oil_beta: float = 0.0        # fixed pass-through elasticity, not free-fitted
+    n_harm: int = 2              # annual Fourier harmonics
+    use_trend: bool = True
 
-    def design(self, dates: pd.DatetimeIndex, oil_term: np.ndarray | None = None) -> np.ndarray:
+    def _oil(self, dates: pd.DatetimeIndex) -> np.ndarray:
+        if self.oil_term is None or self.oil_beta == 0.0:
+            return np.zeros(len(dates))
+        return self.oil_beta * (self.oil_term.reindex(dates).ffill().bfill().to_numpy()
+                                - self.oil_mean)
+
+    def design(self, dates: pd.DatetimeIndex) -> np.ndarray:
         t = (dates - self.t0).days.to_numpy(dtype=float) / 365.25
         doy = dates.dayofyear.to_numpy(dtype=float)
         x = 2 * np.pi * doy / 365.25
@@ -109,34 +143,60 @@ class SeriesModel:
         dow_dum = np.zeros((len(dates), 6))
         for j in range(6):
             dow_dum[:, j] = (dow == j + 1).astype(float)
-        cols = [np.ones(len(dates)), t,
-                np.sin(x), np.cos(x), np.sin(2 * x), np.cos(2 * x)]
+        cols = [np.ones(len(dates))]
+        if self.use_trend:
+            cols.append(t)
+        for k in range(1, self.n_harm + 1):
+            cols += [np.sin(k * x), np.cos(k * x)]
         X = np.column_stack(cols + [dow_dum])
         return X
 
     def predict(self, dates: pd.DatetimeIndex) -> tuple[np.ndarray, np.ndarray]:
         X = self.design(dates)
-        mu = X @ self.beta
+        mu = X @ self.beta + self._oil(dates)
         return np.exp(mu), np.exp(mu) * self.sigma  # approx sd on level scale
 
 
-def fit_series_models(idx: pd.DataFrame) -> dict[str, SeriesModel]:
+def fit_series_models(idx: pd.DataFrame,
+                      oil_term: pd.Series | None = None,
+                      oil_beta: float = 0.0,
+                      n_harm: int = 2,
+                      use_trend: bool = True,
+                      half_life_days: float | None = None) -> dict[str, SeriesModel]:
+    """The oil coefficient is FIXED to the pooled elasticity from the lag
+    analysis (free-fitting it per series is collinear with trend+seasonality
+    on short training windows and overfits): the oil effect is subtracted
+    from log fares before the OLS and added back at prediction."""
     models = {}
     t0 = idx["flight_date"].min()
+    oil_mean = float(oil_term.mean()) if oil_term is not None else 0.0
     for s, sub in idx.groupby("series"):
         sub = sub.dropna(subset=["fare"])
         if len(sub) < 90:
             continue
         dates = pd.DatetimeIndex(sub["flight_date"])
-        y = np.log(sub["fare"].to_numpy())
-        m = SeriesModel(s, None, None, None, len(sub), t0, None)
+        m = SeriesModel(s, None, None, None, len(sub), t0, None,
+                        oil_term, oil_mean, oil_beta, n_harm, use_trend)
+        y = np.log(sub["fare"].to_numpy()) - m._oil(dates)
         X = m.design(dates)
-        beta, *_ = np.linalg.lstsq(X, y, rcond=None)
-        resid = y - X @ beta
+        if half_life_days:
+            # recency weighting: an observation half_life_days old counts half
+            age = (dates.max() - dates).days.to_numpy(dtype=float)
+            sw = np.sqrt(0.5 ** (age / half_life_days))
+            beta, *_ = np.linalg.lstsq(X * sw[:, None], y * sw, rcond=None)
+            resid = y - X @ beta
+            w = sw ** 2
+            m.sigma = float(np.sqrt(np.sum(w * resid ** 2) / w.sum()))
+            ybar = np.sum(w * y) / w.sum()
+            ss_tot = np.sum(w * (y - ybar) ** 2)
+            m.r2 = float(1 - np.sum(w * resid ** 2) / ss_tot) if ss_tot > 0 else 0.0
+        else:
+            beta, *_ = np.linalg.lstsq(X, y, rcond=None)
+            resid = y - X @ beta
+            m.sigma = float(resid.std(ddof=X.shape[1]))
+            ss_tot = ((y - y.mean()) ** 2).sum()
+            m.r2 = float(1 - (resid ** 2).sum() / ss_tot) if ss_tot > 0 else 0.0
         m.beta = beta
-        m.sigma = float(resid.std(ddof=X.shape[1]))
-        ss_tot = ((y - y.mean()) ** 2).sum()
-        m.r2 = float(1 - (resid ** 2).sum() / ss_tot) if ss_tot > 0 else 0.0
         models[s] = m
     return models
 
