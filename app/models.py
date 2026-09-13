@@ -20,7 +20,9 @@ MODEL_CONFIG = {
     "n_harm": 2,          # annual Fourier harmonics
     "use_trend": False,   # linear trend extrapolates noise on short windows
     "half_life_days": 730,  # recency weighting: a 2-year-old obs counts half
+    "pool_by_route": True,  # one seasonal fit per route, per-series offsets
 }
+INDEX_AGG = "mean"        # daily index aggregation across a day's quotes
 DTD_BUCKETS = [0, 2, 4, 6, 9, 13, 18, 24, 31, 40, 52, 67, 83, 120]
 
 
@@ -85,13 +87,14 @@ def fit_booking_curve(df: pd.DataFrame, buckets=None) -> BookingCurve:
 
 # ------------------------------------------------------------- daily fare index
 
-def daily_index(df: pd.DataFrame, curve: BookingCurve, smooth: int = 7) -> pd.DataFrame:
+def daily_index(df: pd.DataFrame, curve: BookingCurve, smooth: int = 7,
+                agg: str = "median") -> pd.DataFrame:
     """One row per (series, flight_date): booking-curve-normalised median fare.
     This is the 1-day-granularity series everything downstream uses."""
     d = df[(df["dtd"] >= 0) & (df["dtd"] < 120)].copy()
     d["norm_fare"] = d["fare"] / curve.value(d["dtd"].to_numpy(), None)
     idx = (d.groupby(["series", "route", "airline", "flight_date"])
-             ["norm_fare"].median().rename("fare").reset_index())
+             ["norm_fare"].agg(agg).rename("fare").reset_index())
     idx = idx.sort_values(["series", "flight_date"])
     idx["fare_7d"] = (idx.groupby("series")["fare"]
                         .transform(lambda s: s.rolling(smooth, min_periods=max(2, smooth // 2),
@@ -102,14 +105,15 @@ def daily_index(df: pd.DataFrame, curve: BookingCurve, smooth: int = 7) -> pd.Da
 # --------------------------------------------------------- per-series regression
 
 def make_oil_term(oil: pd.Series, lag_days: int, start: pd.Timestamp,
-                  end: pd.Timestamp, freeze_after: pd.Timestamp) -> pd.Series:
+                  end: pd.Timestamp, freeze_after: pd.Timestamp,
+                  smooth: int = 30) -> pd.Series:
     """log(30d-smoothed oil) shifted by the pass-through lag, for use as a
     regressor indexed by flight_date. Oil after `freeze_after` is unknown at
     prediction time, so it is held at its last observed value -- no lookahead."""
     days = pd.date_range(start - pd.Timedelta(days=lag_days + 120), end, freq="D")
     o = oil.reindex(days).ffill()
     o = o.where(o.index <= freeze_after).ffill()
-    sm = np.log(o.rolling(30, min_periods=5).mean())
+    sm = np.log(o.rolling(smooth, min_periods=max(3, smooth // 6)).mean())
     term = sm.shift(lag_days, freq="D").reindex(pd.date_range(start, end, freq="D"))
     return term.ffill().bfill()
 
@@ -157,12 +161,65 @@ class SeriesModel:
         return np.exp(mu), np.exp(mu) * self.sigma  # approx sd on level scale
 
 
+def estimate_oil_beta(idx: pd.DataFrame, oil_term: pd.Series,
+                      n_harm: int = 2, use_trend: bool = False,
+                      half_life_days: float | None = None,
+                      **_ignored) -> float:
+    """Level elasticity of fares to (lagged, smoothed) oil, estimated JOINTLY
+    with per-route seasonality via Frisch-Waugh-Lovell: residualise both log
+    fare and the oil term on each route's seasonal design, then pool.
+
+    Identification comes from seasonal phases differing across routes while
+    the oil path is common. (The change-on-change slope in oil_lag_analysis
+    finds the LAG well but attenuates the magnitude; a naive residual
+    regression is also biased low because within one route a year of oil is
+    collinear with seasonality. FWL is the exact joint-OLS answer.)
+    """
+    o_mean = float(oil_term.mean())
+    num = den = 0.0
+    ridx = (idx.dropna(subset=["fare"])
+               .groupby(["route", "flight_date"], as_index=False)["fare"].mean())
+    for r, sub in ridx.groupby("route"):
+        if len(sub) < 90:
+            continue
+        dates = pd.DatetimeIndex(sub["flight_date"])
+        proto = SeriesModel(r, None, None, None, len(sub), dates.min(), None,
+                            None, 0.0, 0.0, n_harm, use_trend)
+        X = proto.design(dates)
+        y = np.log(sub["fare"].to_numpy())
+        x = oil_term.reindex(dates).ffill().bfill().to_numpy() - o_mean
+        if half_life_days:
+            w = 0.5 ** ((dates.max() - dates).days.to_numpy(dtype=float) / half_life_days)
+        else:
+            w = np.ones(len(y))
+        ry = y - X @ _wls(X, y, w)
+        rx = x - X @ _wls(X, x, w)
+        num += float(np.sum(w * rx * ry))
+        den += float(np.sum(w * rx * rx))
+    return num / den if den > 0 else 0.0
+
+
+def _wls(X, y, w, ridge=0.0):
+    """(weighted) least squares with an optional ridge penalty on all
+    non-intercept coefficients."""
+    sw = np.sqrt(w)
+    Xw, yw = X * sw[:, None], y * sw
+    if ridge > 0:
+        P = np.eye(X.shape[1]) * ridge
+        P[0, 0] = 0.0
+        return np.linalg.solve(Xw.T @ Xw + P, Xw.T @ yw)
+    beta, *_ = np.linalg.lstsq(Xw, yw, rcond=None)
+    return beta
+
+
 def fit_series_models(idx: pd.DataFrame,
                       oil_term: pd.Series | None = None,
                       oil_beta: float = 0.0,
                       n_harm: int = 2,
                       use_trend: bool = True,
-                      half_life_days: float | None = None) -> dict[str, SeriesModel]:
+                      half_life_days: float | None = None,
+                      ridge: float = 0.0,
+                      pool_by_route: bool = False) -> dict[str, SeriesModel]:
     """The oil coefficient is FIXED to the pooled elasticity from the lag
     analysis (free-fitting it per series is collinear with trend+seasonality
     on short training windows and overfits): the oil effect is subtracted
@@ -170,34 +227,63 @@ def fit_series_models(idx: pd.DataFrame,
     models = {}
     t0 = idx["flight_date"].min()
     oil_mean = float(oil_term.mean()) if oil_term is not None else 0.0
-    for s, sub in idx.groupby("series"):
-        sub = sub.dropna(subset=["fare"])
-        if len(sub) < 90:
-            continue
+
+    def fit_one(key, sub):
         dates = pd.DatetimeIndex(sub["flight_date"])
-        m = SeriesModel(s, None, None, None, len(sub), t0, None,
+        m = SeriesModel(key, None, None, None, len(sub), t0, None,
                         oil_term, oil_mean, oil_beta, n_harm, use_trend)
         y = np.log(sub["fare"].to_numpy()) - m._oil(dates)
         X = m.design(dates)
         if half_life_days:
             # recency weighting: an observation half_life_days old counts half
             age = (dates.max() - dates).days.to_numpy(dtype=float)
-            sw = np.sqrt(0.5 ** (age / half_life_days))
-            beta, *_ = np.linalg.lstsq(X * sw[:, None], y * sw, rcond=None)
-            resid = y - X @ beta
-            w = sw ** 2
-            m.sigma = float(np.sqrt(np.sum(w * resid ** 2) / w.sum()))
-            ybar = np.sum(w * y) / w.sum()
-            ss_tot = np.sum(w * (y - ybar) ** 2)
-            m.r2 = float(1 - np.sum(w * resid ** 2) / ss_tot) if ss_tot > 0 else 0.0
+            w = 0.5 ** (age / half_life_days)
         else:
-            beta, *_ = np.linalg.lstsq(X, y, rcond=None)
-            resid = y - X @ beta
-            m.sigma = float(resid.std(ddof=X.shape[1]))
-            ss_tot = ((y - y.mean()) ** 2).sum()
-            m.r2 = float(1 - (resid ** 2).sum() / ss_tot) if ss_tot > 0 else 0.0
+            w = np.ones(len(y))
+        beta = _wls(X, y, w, ridge)
+        resid = y - X @ beta
+        m.sigma = float(np.sqrt(np.sum(w * resid ** 2) / w.sum()))
+        ybar = np.sum(w * y) / w.sum()
+        ss_tot = np.sum(w * (y - ybar) ** 2)
+        m.r2 = float(1 - np.sum(w * resid ** 2) / ss_tot) if ss_tot > 0 else 0.0
         m.beta = beta
-        models[s] = m
+        return m
+
+    if pool_by_route:
+        # one seasonal/dow/oil fit per ROUTE (airlines on a route share the
+        # demand pattern; per-series fits waste data re-estimating it), then a
+        # per-series price-level offset on the intercept.
+        route_models = {}
+        for r, sub in idx.dropna(subset=["fare"]).groupby("route"):
+            agg = sub.groupby("flight_date", as_index=False)["fare"].mean()
+            agg["flight_date"] = pd.to_datetime(agg["flight_date"])
+            if len(agg) < 90:
+                continue
+            route_models[r] = fit_one(r, agg)
+        for s, sub in idx.dropna(subset=["fare"]).groupby("series"):
+            r = sub["route"].iloc[0]
+            if r not in route_models or len(sub) < 90:
+                continue
+            rm = route_models[r]
+            dates = pd.DatetimeIndex(sub["flight_date"])
+            y = np.log(sub["fare"].to_numpy())
+            pred = np.log(rm.predict(dates)[0])
+            offset = float(np.mean(y - pred))
+            import copy
+            m = copy.copy(rm)
+            m.series = s
+            m.beta = rm.beta.copy()
+            m.beta[0] += offset
+            m.sigma = float(np.std(y - pred - offset))
+            m.n = len(sub)
+            models[s] = m
+        return models
+
+    for s, sub in idx.groupby("series"):
+        sub = sub.dropna(subset=["fare"])
+        if len(sub) < 90:
+            continue
+        models[s] = fit_one(s, sub)
     return models
 
 

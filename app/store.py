@@ -44,16 +44,17 @@ class Store:
         self.today = self.fares["search_date"].max()
 
         self.curve = M.fit_booking_curve(self.fares)
-        self.index = M.daily_index(self.fares, self.curve)
+        self.index = M.daily_index(self.fares, self.curve, agg=M.INDEX_AGG)
         self.correlations = M.correlation_matrix(self.index)
         self.oil_analysis = M.oil_lag_analysis(self.index, self.oil["brent"])
         oil_term = M.make_oil_term(
             self.oil["brent"], self.oil_analysis["best_lag_days"],
             self.index["flight_date"].min(),
             self.today + pd.Timedelta(days=220), freeze_after=self.today)
+        oil_beta = M.estimate_oil_beta(self.index, oil_term, **M.MODEL_CONFIG)
+        self.oil_analysis["level_elasticity"] = round(oil_beta, 3)
         self.series_models = M.fit_series_models(
-            self.index, oil_term, self.oil_analysis["elasticity"] or 0.0,
-            **M.MODEL_CONFIG)
+            self.index, oil_term, oil_beta, **M.MODEL_CONFIG)
 
     # ------------------------------------------------------------------ data
     def _load_fares(self) -> tuple[pd.DataFrame, str]:
