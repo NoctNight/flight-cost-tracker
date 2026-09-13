@@ -349,5 +349,1317 @@
   "avg_saving": 1.64,
   "hurt_pct": 10.1,
   "n": 1768
+ },
+ "round2": {
+  "adopted": {
+   "pool_by_route": true,
+   "index_agg": "mean",
+   "oil_beta": "FWL level estimate"
+  },
+  "rejected": {
+   "elast_scale_tuning": "monotone val improvement toward true 0.33 but pure hyperparameter on one val year; FWL estimator adopted instead",
+   "ridge": "no gain",
+   "oil_smooth": "\u00b10.01pp",
+   "lag_offset": "\u00b10.01pp",
+   "index_min": "worse"
+  },
+  "final_backtest": [
+   {
+    "price": {
+     "cutoff": "2024-12-31",
+     "test_end": "2025-12-31",
+     "n_series": 68,
+     "n_obs": 24820,
+     "mape_model": 7.85,
+     "mape_seasonal_naive": 10.29,
+     "mape_train_mean": 12.07,
+     "bias_pct": 2.01,
+     "r2_oos": 0.975,
+     "per_series": [
+      {
+       "series": "JFK-SFO:DL",
+       "n": 365,
+       "mape_model": 5.905984263203519,
+       "mape_seasonal_naive": 7.603934733160861,
+       "mape_train_mean": 8.97746655214242,
+       "bias_pct": -2.719735501137708,
+       "r2_oos": 0.4542345366041475
+      },
+      {
+       "series": "JFK-SFO:AA",
+       "n": 365,
+       "mape_model": 5.919621863200945,
+       "mape_seasonal_naive": 7.167527928949144,
+       "mape_train_mean": 9.30465518188823,
+       "bias_pct": -2.2074303086494638,
+       "r2_oos": 0.5061651204822606
+      },
+      {
+       "series": "SEA-SFO:AS",
+       "n": 365,
+       "mape_model": 6.062026874850505,
+       "mape_seasonal_naive": 8.605897213828035,
+       "mape_train_mean": 11.584563787367431,
+       "bias_pct": 2.892361398502338,
+       "r2_oos": 0.6631435215394013
+      },
+      {
+       "series": "ORD-DEN:AA",
+       "n": 365,
+       "mape_model": 6.093580058271134,
+       "mape_seasonal_naive": 8.334409425300358,
+       "mape_train_mean": 9.211134190103795,
+       "bias_pct": 1.6989820535798068,
+       "r2_oos": 0.4741351257205978
+      },
+      {
+       "series": "DEN-ORD:WN",
+       "n": 365,
+       "mape_model": 6.170927513590745,
+       "mape_seasonal_naive": 7.957784632925981,
+       "mape_train_mean": 9.81852756910694,
+       "bias_pct": -2.1100119973148446,
+       "r2_oos": 0.516486851991067
+      },
+      {
+       "series": "JFK-SFO:B6",
+       "n": 365,
+       "mape_model": 6.27419695701157,
+       "mape_seasonal_naive": 6.995431768399629,
+       "mape_train_mean": 8.893200928575009,
+       "bias_pct": -4.093808438223704,
+       "r2_oos": 0.43545392157968366
+      },
+      {
+       "series": "DEN-ORD:AA",
+       "n": 365,
+       "mape_model": 6.315666342973883,
+       "mape_seasonal_naive": 7.699074752841134,
+       "mape_train_mean": 10.709535587810644,
+       "bias_pct": 0.5795605757471918,
+       "r2_oos": 0.6277079562682055
+      },
+      {
+       "series": "SYD-LHR:SQ",
+       "n": 365,
+       "mape_model": 6.325557059168499,
+       "mape_seasonal_naive": 8.36947996146931,
+       "mape_train_mean": 12.819666247283914,
+       "bias_pct": 1.7184553645839862,
+       "r2_oos": 0.6581616355885944
+      },
+      {
+       "series": "ORD-DEN:WN",
+       "n": 365,
+       "mape_model": 6.424127679573739,
+       "mape_seasonal_naive": 8.871782120021178,
+       "mape_train_mean": 9.37696821740933,
+       "bias_pct": 2.0742592056828735,
+       "r2_oos": 0.433603496556041
+      },
+      {
+       "series": "JFK-LAX:DL",
+       "n": 365,
+       "mape_model": 6.473201268449381,
+       "mape_seasonal_naive": 8.559423798050934,
+       "mape_train_mean": 10.251880235853951,
+       "bias_pct": -0.30300858045101053,
+       "r2_oos": 0.5701453845667367
+      },
+      {
+       "series": "SYD-LHR:CX",
+       "n": 365,
+       "mape_model": 6.573786725401655,
+       "mape_seasonal_naive": 8.747514788028182,
+       "mape_train_mean": 13.008329565055247,
+       "bias_pct": 1.819721397275826,
+       "r2_oos": 0.6741382988046142
+      },
+      {
+       "series": "JFK-LAX:UA",
+       "n": 365,
+       "mape_model": 6.584874642743569,
+       "mape_seasonal_naive": 8.39267712738381,
+       "mape_train_mean": 9.757901510479003,
+       "bias_pct": 0.8864820384311785,
+       "r2_oos": 0.5403078780590649
+      },
+      {
+       "series": "JFK-SFO:UA",
+       "n": 365,
+       "mape_model": 6.617980939797789,
+       "mape_seasonal_naive": 7.964374815273636,
+       "mape_train_mean": 9.663852820638724,
+       "bias_pct": -1.7980741971970242,
+       "r2_oos": 0.4704223827358558
+      },
+      {
+       "series": "ATL-MIA:WN",
+       "n": 365,
+       "mape_model": 6.755676193744943,
+       "mape_seasonal_naive": 10.600558324142552,
+       "mape_train_mean": 11.379421645247827,
+       "bias_pct": 0.5919906630812949,
+       "r2_oos": 0.5591922861200322
+      },
+      {
+       "series": "SEA-SFO:DL",
+       "n": 365,
+       "mape_model": 6.766928995279582,
+       "mape_seasonal_naive": 9.080063706587376,
+       "mape_train_mean": 11.685529831682317,
+       "bias_pct": 3.247818537113594,
+       "r2_oos": 0.5901260725727822
+      },
+      {
+       "series": "JFK-LAX:AA",
+       "n": 365,
+       "mape_model": 6.771511226237305,
+       "mape_seasonal_naive": 9.079719493814686,
+       "mape_train_mean": 10.565917786316591,
+       "bias_pct": 1.3480966094260118,
+       "r2_oos": 0.5523711869783107
+      },
+      {
+       "series": "ORD-DEN:UA",
+       "n": 365,
+       "mape_model": 6.7804607228098375,
+       "mape_seasonal_naive": 8.782979601002282,
+       "mape_train_mean": 9.289198163796328,
+       "bias_pct": 2.27478753906096,
+       "r2_oos": 0.32059388236949393
+      },
+      {
+       "series": "SFO-JFK:AA",
+       "n": 365,
+       "mape_model": 6.83374880303573,
+       "mape_seasonal_naive": 9.317840176402537,
+       "mape_train_mean": 11.641305941077086,
+       "bias_pct": -3.446093668980245,
+       "r2_oos": 0.6048376383858789
+      },
+      {
+       "series": "MIA-ATL:DL",
+       "n": 365,
+       "mape_model": 6.85434302214539,
+       "mape_seasonal_naive": 10.53874316390215,
+       "mape_train_mean": 13.98063148839251,
+       "bias_pct": 0.5321727878510013,
+       "r2_oos": 0.743729208338963
+      },
+      {
+       "series": "DEN-ORD:UA",
+       "n": 365,
+       "mape_model": 6.885480687036373,
+       "mape_seasonal_naive": 8.1908964093191,
+       "mape_train_mean": 10.47157983205029,
+       "bias_pct": -0.7627476259852526,
+       "r2_oos": 0.5439587502186203
+      },
+      {
+       "series": "SEA-SFO:UA",
+       "n": 365,
+       "mape_model": 6.889351682190521,
+       "mape_seasonal_naive": 9.87531053896048,
+       "mape_train_mean": 11.90100604445452,
+       "bias_pct": 1.9163997806856723,
+       "r2_oos": 0.5987083904498338
+      },
+      {
+       "series": "SYD-LHR:QR",
+       "n": 365,
+       "mape_model": 6.89907123893266,
+       "mape_seasonal_naive": 8.625941914680588,
+       "mape_train_mean": 12.46167829900952,
+       "bias_pct": 1.8084767170622302,
+       "r2_oos": 0.5979162371517619
+      },
+      {
+       "series": "LAX-BOS:B6",
+       "n": 365,
+       "mape_model": 6.908251836272658,
+       "mape_seasonal_naive": 9.930533751173593,
+       "mape_train_mean": 9.645212852750484,
+       "bias_pct": 1.3546430076758145,
+       "r2_oos": 0.4441606829647363
+      },
+      {
+       "series": "MIA-ATL:WN",
+       "n": 365,
+       "mape_model": 6.9148118976015835,
+       "mape_seasonal_naive": 10.750939910241573,
+       "mape_train_mean": 13.736802812412657,
+       "bias_pct": -0.23158898313433304,
+       "r2_oos": 0.7203396784294394
+      },
+      {
+       "series": "MIA-ATL:AA",
+       "n": 365,
+       "mape_model": 7.007826840456163,
+       "mape_seasonal_naive": 10.962827796681369,
+       "mape_train_mean": 14.150557480794774,
+       "bias_pct": 0.10454580820037085,
+       "r2_oos": 0.7224045310628999
+      },
+      {
+       "series": "LAX-JFK:B6",
+       "n": 365,
+       "mape_model": 7.031443659733908,
+       "mape_seasonal_naive": 8.725978126103524,
+       "mape_train_mean": 9.633817843575798,
+       "bias_pct": -0.9274323862993374,
+       "r2_oos": 0.417421618118754
+      },
+      {
+       "series": "SYD-LHR:BA",
+       "n": 365,
+       "mape_model": 7.075509214491617,
+       "mape_seasonal_naive": 8.984880099920005,
+       "mape_train_mean": 13.089037038242344,
+       "bias_pct": 2.200007168172002,
+       "r2_oos": 0.61169443938851
+      },
+      {
+       "series": "SFO-JFK:UA",
+       "n": 365,
+       "mape_model": 7.093064213688104,
+       "mape_seasonal_naive": 8.611907555306606,
+       "mape_train_mean": 11.39668295056873,
+       "bias_pct": -4.794864709931048,
+       "r2_oos": 0.5557026586131084
+      },
+      {
+       "series": "JFK-LAX:B6",
+       "n": 365,
+       "mape_model": 7.108687830168689,
+       "mape_seasonal_naive": 8.854673715168282,
+       "mape_train_mean": 10.923389941579083,
+       "bias_pct": 0.7997284678644719,
+       "r2_oos": 0.5301208612668101
+      },
+      {
+       "series": "ORD-LGA:DL",
+       "n": 365,
+       "mape_model": 7.127152692064234,
+       "mape_seasonal_naive": 9.99545758465392,
+       "mape_train_mean": 13.458009172758405,
+       "bias_pct": 4.814029561176344,
+       "r2_oos": 0.48954092828681905
+      },
+      {
+       "series": "SFO-JFK:DL",
+       "n": 365,
+       "mape_model": 7.197659194055815,
+       "mape_seasonal_naive": 9.022453228741158,
+       "mape_train_mean": 11.914016121573322,
+       "bias_pct": -4.273349250613319,
+       "r2_oos": 0.5692615699926251
+      },
+      {
+       "series": "LGA-ORD:UA",
+       "n": 365,
+       "mape_model": 7.200430570526946,
+       "mape_seasonal_naive": 9.833420128824867,
+       "mape_train_mean": 10.77998994080333,
+       "bias_pct": 0.1396781170454643,
+       "r2_oos": 0.5441851855230743
+      },
+      {
+       "series": "SYD-LHR:EK",
+       "n": 365,
+       "mape_model": 7.234262652654398,
+       "mape_seasonal_naive": 9.578014845354332,
+       "mape_train_mean": 13.609610094621704,
+       "bias_pct": 2.4875001999467394,
+       "r2_oos": 0.6194914102732889
+      },
+      {
+       "series": "LAX-JFK:AA",
+       "n": 365,
+       "mape_model": 7.259777693677261,
+       "mape_seasonal_naive": 8.578047969693639,
+       "mape_train_mean": 9.380836189467157,
+       "bias_pct": -1.7889922026970535,
+       "r2_oos": 0.4226420299559107
+      },
+      {
+       "series": "LAX-BOS:DL",
+       "n": 365,
+       "mape_model": 7.263498396397957,
+       "mape_seasonal_naive": 9.765253795714342,
+       "mape_train_mean": 9.831906576435037,
+       "bias_pct": 0.6527164914158575,
+       "r2_oos": 0.40235037932610174
+      },
+      {
+       "series": "ATL-MIA:AA",
+       "n": 365,
+       "mape_model": 7.2898376362271975,
+       "mape_seasonal_naive": 10.827332073044763,
+       "mape_train_mean": 11.588251227190526,
+       "bias_pct": 1.4654254661253605,
+       "r2_oos": 0.5078928797510806
+      },
+      {
+       "series": "SYD-LHR:QF",
+       "n": 365,
+       "mape_model": 7.320599416089508,
+       "mape_seasonal_naive": 9.929307989670814,
+       "mape_train_mean": 14.019376401817347,
+       "bias_pct": 2.334600020494913,
+       "r2_oos": 0.6455884548162405
+      },
+      {
+       "series": "SFO-SEA:DL",
+       "n": 365,
+       "mape_model": 7.356958698148673,
+       "mape_seasonal_naive": 9.50530101645174,
+       "mape_train_mean": 11.230119624889303,
+       "bias_pct": 3.606364833218652,
+       "r2_oos": 0.4412576211635726
+      },
+      {
+       "series": "LAX-BOS:AA",
+       "n": 365,
+       "mape_model": 7.483887473086234,
+       "mape_seasonal_naive": 9.8872908563767,
+       "mape_train_mean": 10.099330080841789,
+       "bias_pct": 1.5728327835098703,
+       "r2_oos": 0.3797865290445961
+      },
+      {
+       "series": "LAX-SFO:WN",
+       "n": 365,
+       "mape_model": 7.563686607690857,
+       "mape_seasonal_naive": 11.449366862652033,
+       "mape_train_mean": 12.714002793793513,
+       "bias_pct": 2.8103854825436723,
+       "r2_oos": 0.6195508073652962
+      },
+      {
+       "series": "LAX-JFK:UA",
+       "n": 365,
+       "mape_model": 7.587673251370824,
+       "mape_seasonal_naive": 9.232381959959438,
+       "mape_train_mean": 9.37501865462159,
+       "bias_pct": -0.5062236063085064,
+       "r2_oos": 0.3383204156330899
+      },
+      {
+       "series": "SFO-JFK:B6",
+       "n": 365,
+       "mape_model": 7.651582564671851,
+       "mape_seasonal_naive": 9.355847835052165,
+       "mape_train_mean": 11.966475715405494,
+       "bias_pct": -5.21526552638862,
+       "r2_oos": 0.5324064819876994
+      },
+      {
+       "series": "LAX-JFK:DL",
+       "n": 365,
+       "mape_model": 7.655334021472589,
+       "mape_seasonal_naive": 9.699665818327537,
+       "mape_train_mean": 9.709430681341997,
+       "bias_pct": 0.08181571940909002,
+       "r2_oos": 0.3905253547906441
+      },
+      {
+       "series": "LAX-SFO:UA",
+       "n": 365,
+       "mape_model": 7.713838121282829,
+       "mape_seasonal_naive": 10.325440210608145,
+       "mape_train_mean": 12.796565983842356,
+       "bias_pct": 2.141217665792537,
+       "r2_oos": 0.6024071096160883
+      },
+      {
+       "series": "LAX-SFO:DL",
+       "n": 365,
+       "mape_model": 7.812457525781396,
+       "mape_seasonal_naive": 10.808718888869562,
+       "mape_train_mean": 12.983050422935664,
+       "bias_pct": 2.2770960243629506,
+       "r2_oos": 0.5952183558564517
+      },
+      {
+       "series": "ATL-MIA:DL",
+       "n": 365,
+       "mape_model": 7.845264491822467,
+       "mape_seasonal_naive": 11.28593687434002,
+       "mape_train_mean": 11.943567129395289,
+       "bias_pct": 1.0336629315256691,
+       "r2_oos": 0.5107558986758306
+      },
+      {
+       "series": "SFO-SEA:AS",
+       "n": 365,
+       "mape_model": 7.857906866764012,
+       "mape_seasonal_naive": 9.190096460565382,
+       "mape_train_mean": 11.609011355736106,
+       "bias_pct": 2.331758625186138,
+       "r2_oos": 0.4161552438345365
+      },
+      {
+       "series": "LGA-ORD:DL",
+       "n": 365,
+       "mape_model": 7.893854644291716,
+       "mape_seasonal_naive": 10.617927575736347,
+       "mape_train_mean": 11.151383427941324,
+       "bias_pct": -0.7392363970314717,
+       "r2_oos": 0.5267861219572948
+      },
+      {
+       "series": "SFO-SEA:UA",
+       "n": 365,
+       "mape_model": 7.901856453932475,
+       "mape_seasonal_naive": 9.690892290963404,
+       "mape_train_mean": 11.377883611108915,
+       "bias_pct": 2.273159849127416,
+       "r2_oos": 0.4194561944185087
+      },
+      {
+       "series": "LAX-SFO:AS",
+       "n": 365,
+       "mape_model": 7.958397520534241,
+       "mape_seasonal_naive": 11.880103293505371,
+       "mape_train_mean": 13.533695964654873,
+       "bias_pct": 3.5510313286525346,
+       "r2_oos": 0.5998125916060205
+      },
+      {
+       "series": "ORD-LGA:UA",
+       "n": 365,
+       "mape_model": 7.975410880185807,
+       "mape_seasonal_naive": 9.912719946454729,
+       "mape_train_mean": 13.278933603414986,
+       "bias_pct": 4.656927372485823,
+       "r2_oos": 0.44912259730015414
+      },
+      {
+       "series": "LAX-BOS:UA",
+       "n": 365,
+       "mape_model": 8.173742781665922,
+       "mape_seasonal_naive": 10.13016527446959,
+       "mape_train_mean": 10.72927467911496,
+       "bias_pct": 3.5408821666524855,
+       "r2_oos": 0.2984954573991081
+      },
+      {
+       "series": "LGA-ORD:AA",
+       "n": 365,
+       "mape_model": 8.253233274884138,
+       "mape_seasonal_naive": 10.48722255277669,
+       "mape_train_mean": 11.248773784088424,
+       "bias_pct": 0.9495528472009147,
+       "r2_oos": 0.46612067354530906
+      },
+      {
+       "series": "ORD-LGA:AA",
+       "n": 365,
+       "mape_model": 8.46984819872912,
+       "mape_seasonal_naive": 11.396479758467597,
+       "mape_train_mean": 15.339957055503028,
+       "bias_pct": 6.106306397841268,
+       "r2_oos": 0.4872372064770364
+      },
+      {
+       "series": "BOS-LAX:DL",
+       "n": 365,
+       "mape_model": 8.525949527866814,
+       "mape_seasonal_naive": 11.322202000459923,
+       "mape_train_mean": 11.209003746274142,
+       "bias_pct": 5.043999342677894,
+       "r2_oos": 0.10233988219919676
+      },
+      {
+       "series": "BOS-LAX:AA",
+       "n": 365,
+       "mape_model": 8.557933963216133,
+       "mape_seasonal_naive": 11.091712575471083,
+       "mape_train_mean": 11.282448759290357,
+       "bias_pct": 3.6402702616101963,
+       "r2_oos": 0.21198702627380894
+      },
+      {
+       "series": "SFO-LAX:DL",
+       "n": 365,
+       "mape_model": 8.588107766459075,
+       "mape_seasonal_naive": 10.966733978152103,
+       "mape_train_mean": 13.213473435975171,
+       "bias_pct": 3.9749457502335335,
+       "r2_oos": 0.5237083466325347
+      },
+      {
+       "series": "SFO-LAX:AS",
+       "n": 365,
+       "mape_model": 8.70467236736189,
+       "mape_seasonal_naive": 11.383078464806331,
+       "mape_train_mean": 13.277126113615138,
+       "bias_pct": 3.383042873058526,
+       "r2_oos": 0.5207246869924284
+      },
+      {
+       "series": "SFO-LAX:WN",
+       "n": 365,
+       "mape_model": 8.920527436995087,
+       "mape_seasonal_naive": 11.28831692974082,
+       "mape_train_mean": 13.498817020174592,
+       "bias_pct": 3.7968909677147216,
+       "r2_oos": 0.51552856892077
+      },
+      {
+       "series": "BOS-LAX:B6",
+       "n": 365,
+       "mape_model": 9.063137727214158,
+       "mape_seasonal_naive": 11.97253809448167,
+       "mape_train_mean": 10.933665853730485,
+       "bias_pct": 5.166365770788211,
+       "r2_oos": -0.08615394047205704
+      },
+      {
+       "series": "SFO-LAX:UA",
+       "n": 365,
+       "mape_model": 9.254914335691415,
+       "mape_seasonal_naive": 11.954711862464535,
+       "mape_train_mean": 13.87078153052289,
+       "bias_pct": 4.318662793324029,
+       "r2_oos": 0.5072777052518018
+      },
+      {
+       "series": "BOS-LAX:UA",
+       "n": 365,
+       "mape_model": 9.340813085750016,
+       "mape_seasonal_naive": 12.239280202794538,
+       "mape_train_mean": 11.809493220651131,
+       "bias_pct": 5.162919838230958,
+       "r2_oos": 0.0556847076648328
+      },
+      {
+       "series": "LHR-SYD:EK",
+       "n": 365,
+       "mape_model": 12.647817511978435,
+       "mape_seasonal_naive": 15.235943739304696,
+       "mape_train_mean": 17.27993667215281,
+       "bias_pct": 9.964105743598239,
+       "r2_oos": 0.2630406555610615
+      },
+      {
+       "series": "LHR-SYD:QR",
+       "n": 365,
+       "mape_model": 12.655582579761779,
+       "mape_seasonal_naive": 15.991231689576663,
+       "mape_train_mean": 17.45076764363718,
+       "bias_pct": 10.08885090695115,
+       "r2_oos": 0.25348327023100303
+      },
+      {
+       "series": "LHR-SYD:BA",
+       "n": 365,
+       "mape_model": 12.885678089431115,
+       "mape_seasonal_naive": 16.672982230618775,
+       "mape_train_mean": 17.581429292143408,
+       "bias_pct": 9.737504876013096,
+       "r2_oos": 0.27130126812117583
+      },
+      {
+       "series": "LHR-SYD:SQ",
+       "n": 365,
+       "mape_model": 13.04414698199012,
+       "mape_seasonal_naive": 16.008549587179026,
+       "mape_train_mean": 17.635515991384175,
+       "bias_pct": 9.477689191653399,
+       "r2_oos": 0.2983752700742731
+      },
+      {
+       "series": "LHR-SYD:QF",
+       "n": 365,
+       "mape_model": 13.653386292111112,
+       "mape_seasonal_naive": 16.744109822114776,
+       "mape_train_mean": 17.721806929888228,
+       "bias_pct": 10.808901166418979,
+       "r2_oos": 0.17601020346077767
+      },
+      {
+       "series": "LHR-SYD:CX",
+       "n": 365,
+       "mape_model": 14.528632737938118,
+       "mape_seasonal_naive": 18.020061344802606,
+       "mape_train_mean": 19.173323265648136,
+       "bias_pct": 11.435377676907246,
+       "r2_oos": 0.18954805675763364
+      }
+     ],
+     "r2_oos_median_series": 0.509
+    },
+    "timing": {
+     "anchor_dtd": 60,
+     "n_flights": 2992,
+     "avg_saving_vs_buy_now_pct": 1.72,
+     "median_saving_vs_buy_now_pct": 1.56,
+     "std_saving_pct": 2.05,
+     "std_saving_usd": 4.44,
+     "avg_saving_usd": 3.23,
+     "saving_pct_percentiles": {
+      "p10": -0.37,
+      "p25": 0.0,
+      "p50": 1.56,
+      "p75": 3.19,
+      "p90": 4.5
+     },
+     "avg_possible_saving_pct": 4.25,
+     "capture_ratio": 0.324,
+     "pct_flights_advice_helped": 69.7,
+     "pct_flights_advice_hurt": 9.1
+    }
+   },
+   {
+    "price": {
+     "cutoff": "2025-12-31",
+     "test_end": "2026-09-01",
+     "n_series": 68,
+     "n_obs": 16592,
+     "mape_model": 11.45,
+     "mape_seasonal_naive": 12.93,
+     "mape_train_mean": 12.3,
+     "bias_pct": -6.92,
+     "r2_oos": 0.929,
+     "per_series": [
+      {
+       "series": "SFO-LAX:UA",
+       "n": 244,
+       "mape_model": 7.595779385799697,
+       "mape_seasonal_naive": 11.116173245065642,
+       "mape_train_mean": 9.68003097052406,
+       "bias_pct": -3.062826549351718,
+       "r2_oos": 0.13776383493744904
+      },
+      {
+       "series": "LAX-BOS:UA",
+       "n": 244,
+       "mape_model": 7.60416240847442,
+       "mape_seasonal_naive": 11.544710341734278,
+       "mape_train_mean": 7.551797761791635,
+       "bias_pct": -5.705910364614232,
+       "r2_oos": -0.34311573364454895
+      },
+      {
+       "series": "SFO-LAX:WN",
+       "n": 244,
+       "mape_model": 7.619728687997113,
+       "mape_seasonal_naive": 10.947718388308072,
+       "mape_train_mean": 9.226474586202066,
+       "bias_pct": -2.8671739904149067,
+       "r2_oos": 0.1287034620424553
+      },
+      {
+       "series": "SFO-LAX:AS",
+       "n": 244,
+       "mape_model": 7.685733658318368,
+       "mape_seasonal_naive": 11.448761036475453,
+       "mape_train_mean": 10.325441956767726,
+       "bias_pct": -2.5861261849623256,
+       "r2_oos": 0.16526601939876362
+      },
+      {
+       "series": "SFO-LAX:DL",
+       "n": 244,
+       "mape_model": 7.763465964736168,
+       "mape_seasonal_naive": 10.927870553418757,
+       "mape_train_mean": 9.969111164696344,
+       "bias_pct": -2.802082690235235,
+       "r2_oos": 0.10082356161503525
+      },
+      {
+       "series": "LGA-ORD:UA",
+       "n": 244,
+       "mape_model": 7.894457423951073,
+       "mape_seasonal_naive": 10.04043094634056,
+       "mape_train_mean": 8.114818219649157,
+       "bias_pct": -3.242136220486035,
+       "r2_oos": 0.03341123837947124
+      },
+      {
+       "series": "LGA-ORD:DL",
+       "n": 244,
+       "mape_model": 7.9086517267364655,
+       "mape_seasonal_naive": 10.030879107218578,
+       "mape_train_mean": 8.74637962745424,
+       "bias_pct": -4.2770523876367745,
+       "r2_oos": 0.2685480251584311
+      },
+      {
+       "series": "LAX-BOS:B6",
+       "n": 244,
+       "mape_model": 7.983953353820783,
+       "mape_seasonal_naive": 10.363851661251216,
+       "mape_train_mean": 7.353522724987838,
+       "bias_pct": -6.996508335818802,
+       "r2_oos": -0.3480074394363284
+      },
+      {
+       "series": "LGA-ORD:AA",
+       "n": 244,
+       "mape_model": 8.05400030554578,
+       "mape_seasonal_naive": 9.829054183497938,
+       "mape_train_mean": 8.847629184428882,
+       "bias_pct": -3.36921142612807,
+       "r2_oos": 0.19941477880580172
+      },
+      {
+       "series": "LAX-BOS:AA",
+       "n": 244,
+       "mape_model": 8.08205209187902,
+       "mape_seasonal_naive": 11.133722174207854,
+       "mape_train_mean": 7.350727421145551,
+       "bias_pct": -5.751138896317808,
+       "r2_oos": -0.5413631321558852
+      },
+      {
+       "series": "LAX-BOS:DL",
+       "n": 244,
+       "mape_model": 8.745919080231875,
+       "mape_seasonal_naive": 11.429870446514297,
+       "mape_train_mean": 7.060576502427726,
+       "bias_pct": -6.291593703951932,
+       "r2_oos": -0.7596555117187505
+      },
+      {
+       "series": "LAX-SFO:AS",
+       "n": 244,
+       "mape_model": 9.384963421944345,
+       "mape_seasonal_naive": 12.844007022959826,
+       "mape_train_mean": 11.116861961264382,
+       "bias_pct": -5.626911562903405,
+       "r2_oos": -0.16660066341120894
+      },
+      {
+       "series": "BOS-LAX:UA",
+       "n": 244,
+       "mape_model": 9.439797216496185,
+       "mape_seasonal_naive": 12.387736784591272,
+       "mape_train_mean": 15.689691895883279,
+       "bias_pct": -4.493178697540774,
+       "r2_oos": 0.4086595672608836
+      },
+      {
+       "series": "SFO-JFK:UA",
+       "n": 244,
+       "mape_model": 9.510498087684272,
+       "mape_seasonal_naive": 9.176736359350333,
+       "mape_train_mean": 8.874333846704767,
+       "bias_pct": -7.664574196283998,
+       "r2_oos": -0.3916830710793444
+      },
+      {
+       "series": "BOS-LAX:B6",
+       "n": 244,
+       "mape_model": 9.526062778573204,
+       "mape_seasonal_naive": 12.613437299882133,
+       "mape_train_mean": 15.497510849428819,
+       "bias_pct": -4.535813352219154,
+       "r2_oos": 0.41272628722762306
+      },
+      {
+       "series": "BOS-LAX:AA",
+       "n": 244,
+       "mape_model": 9.554882804549981,
+       "mape_seasonal_naive": 12.159252561805525,
+       "mape_train_mean": 15.44174643774169,
+       "bias_pct": -4.31691460653664,
+       "r2_oos": 0.43872131075437326
+      },
+      {
+       "series": "SFO-JFK:AA",
+       "n": 244,
+       "mape_model": 9.738126547952023,
+       "mape_seasonal_naive": 9.429001591518904,
+       "mape_train_mean": 7.977680339568788,
+       "bias_pct": -8.282617022942377,
+       "r2_oos": -0.6580264184745415
+      },
+      {
+       "series": "SFO-SEA:AS",
+       "n": 244,
+       "mape_model": 9.821844526340218,
+       "mape_seasonal_naive": 12.463013715938787,
+       "mape_train_mean": 11.762694012601312,
+       "bias_pct": -5.5308299357610675,
+       "r2_oos": 0.04541109348628081
+      },
+      {
+       "series": "SFO-JFK:B6",
+       "n": 244,
+       "mape_model": 9.850131733388661,
+       "mape_seasonal_naive": 8.6444734223378,
+       "mape_train_mean": 8.250891032884407,
+       "bias_pct": -8.33323883207752,
+       "r2_oos": -0.4377043539531744
+      },
+      {
+       "series": "MIA-ATL:DL",
+       "n": 244,
+       "mape_model": 9.85154201790171,
+       "mape_seasonal_naive": 10.839548226464474,
+       "mape_train_mean": 9.248201455431534,
+       "bias_pct": -7.023092968303284,
+       "r2_oos": -0.18465191970041395
+      },
+      {
+       "series": "ATL-MIA:AA",
+       "n": 244,
+       "mape_model": 9.874697415407544,
+       "mape_seasonal_naive": 10.311501695382196,
+       "mape_train_mean": 10.438213936825404,
+       "bias_pct": -9.23043459232489,
+       "r2_oos": -0.06013087045227139
+      },
+      {
+       "series": "SFO-JFK:DL",
+       "n": 244,
+       "mape_model": 9.895273127865446,
+       "mape_seasonal_naive": 8.960126497723552,
+       "mape_train_mean": 8.036760688625142,
+       "bias_pct": -8.739836430252463,
+       "r2_oos": -0.48473946527185974
+      },
+      {
+       "series": "ORD-DEN:UA",
+       "n": 244,
+       "mape_model": 10.045249984533227,
+       "mape_seasonal_naive": 11.671289800086564,
+       "mape_train_mean": 15.516227089230583,
+       "bias_pct": -6.362359376620052,
+       "r2_oos": 0.28655294935809994
+      },
+      {
+       "series": "ATL-MIA:WN",
+       "n": 244,
+       "mape_model": 10.054016088663484,
+       "mape_seasonal_naive": 8.78489328031445,
+       "mape_train_mean": 9.219276830856916,
+       "bias_pct": -9.44173561664092,
+       "r2_oos": -0.21719496640076508
+      },
+      {
+       "series": "ORD-DEN:WN",
+       "n": 244,
+       "mape_model": 10.144417095333887,
+       "mape_seasonal_naive": 10.645672326174262,
+       "mape_train_mean": 15.681801195437878,
+       "bias_pct": -6.401596230159594,
+       "r2_oos": 0.3013141428808408
+      },
+      {
+       "series": "BOS-LAX:DL",
+       "n": 244,
+       "mape_model": 10.214595431095828,
+       "mape_seasonal_naive": 11.815949462831103,
+       "mape_train_mean": 16.222335324009343,
+       "bias_pct": -4.7772670306229825,
+       "r2_oos": 0.3964689020610985
+      },
+      {
+       "series": "LAX-SFO:WN",
+       "n": 244,
+       "mape_model": 10.32942316889945,
+       "mape_seasonal_naive": 13.596154533466049,
+       "mape_train_mean": 11.796082882755819,
+       "bias_pct": -5.8645621862430035,
+       "r2_oos": -0.04197171897805885
+      },
+      {
+       "series": "SEA-SFO:DL",
+       "n": 244,
+       "mape_model": 10.364897857047778,
+       "mape_seasonal_naive": 11.939765070560604,
+       "mape_train_mean": 20.434916270855542,
+       "bias_pct": -3.9688104810675298,
+       "r2_oos": 0.5651119749165092
+      },
+      {
+       "series": "LAX-SFO:DL",
+       "n": 244,
+       "mape_model": 10.63738284732381,
+       "mape_seasonal_naive": 14.128614772780201,
+       "mape_train_mean": 10.953028848336325,
+       "bias_pct": -5.258332395530704,
+       "r2_oos": -0.21914655505553382
+      },
+      {
+       "series": "ORD-DEN:AA",
+       "n": 244,
+       "mape_model": 10.766208560067383,
+       "mape_seasonal_naive": 11.052270687506784,
+       "mape_train_mean": 16.39044309798531,
+       "bias_pct": -6.755992701378879,
+       "r2_oos": 0.30223130333279946
+      },
+      {
+       "series": "SFO-SEA:UA",
+       "n": 244,
+       "mape_model": 10.800188087468289,
+       "mape_seasonal_naive": 11.52574013913665,
+       "mape_train_mean": 11.654616807110703,
+       "bias_pct": -7.464915568776073,
+       "r2_oos": -0.09619004473813253
+      },
+      {
+       "series": "ATL-MIA:DL",
+       "n": 244,
+       "mape_model": 10.881480609955487,
+       "mape_seasonal_naive": 10.37620714672247,
+       "mape_train_mean": 10.039470799461734,
+       "bias_pct": -10.104052696506947,
+       "r2_oos": -0.23808008949504567
+      },
+      {
+       "series": "MIA-ATL:AA",
+       "n": 244,
+       "mape_model": 10.959734328658719,
+       "mape_seasonal_naive": 11.706258124310265,
+       "mape_train_mean": 9.597821101064516,
+       "bias_pct": -8.009168401622972,
+       "r2_oos": -0.17836184252489407
+      },
+      {
+       "series": "SFO-SEA:DL",
+       "n": 244,
+       "mape_model": 10.974612505843483,
+       "mape_seasonal_naive": 12.112077242177023,
+       "mape_train_mean": 10.952360710536892,
+       "bias_pct": -6.627886818826361,
+       "r2_oos": -0.1911413614651709
+      },
+      {
+       "series": "DEN-ORD:WN",
+       "n": 244,
+       "mape_model": 11.05070474888603,
+       "mape_seasonal_naive": 9.80334928418538,
+       "mape_train_mean": 7.514684097579504,
+       "bias_pct": -10.434586834747261,
+       "r2_oos": -1.0287336753028007
+      },
+      {
+       "series": "LAX-SFO:UA",
+       "n": 244,
+       "mape_model": 11.174312729742173,
+       "mape_seasonal_naive": 13.435702505606079,
+       "mape_train_mean": 11.634852131170764,
+       "bias_pct": -5.5025539023422025,
+       "r2_oos": -0.17477342640497495
+      },
+      {
+       "series": "SEA-SFO:UA",
+       "n": 244,
+       "mape_model": 11.177721623150322,
+       "mape_seasonal_naive": 13.889947645664435,
+       "mape_train_mean": 21.189489301199625,
+       "bias_pct": -4.801966574787439,
+       "r2_oos": 0.501259283975799
+      },
+      {
+       "series": "SEA-SFO:AS",
+       "n": 244,
+       "mape_model": 11.211609848073625,
+       "mape_seasonal_naive": 12.325253034797809,
+       "mape_train_mean": 21.839943582860364,
+       "bias_pct": -3.944647663823507,
+       "r2_oos": 0.5316901379971166
+      },
+      {
+       "series": "MIA-ATL:WN",
+       "n": 244,
+       "mape_model": 11.23938426445901,
+       "mape_seasonal_naive": 11.309053157833874,
+       "mape_train_mean": 9.276527651939455,
+       "bias_pct": -8.418577762935856,
+       "r2_oos": -0.3827319875765427
+      },
+      {
+       "series": "DEN-ORD:UA",
+       "n": 244,
+       "mape_model": 11.343533429997233,
+       "mape_seasonal_naive": 10.2533763314159,
+       "mape_train_mean": 7.822001052558794,
+       "bias_pct": -11.114437804194734,
+       "r2_oos": -1.3016360622707928
+      },
+      {
+       "series": "ORD-LGA:DL",
+       "n": 244,
+       "mape_model": 11.607519946926258,
+       "mape_seasonal_naive": 12.604322815234545,
+       "mape_train_mean": 12.782698937213638,
+       "bias_pct": -11.022714127008353,
+       "r2_oos": -0.1872395313878128
+      },
+      {
+       "series": "DEN-ORD:AA",
+       "n": 244,
+       "mape_model": 11.73579795433658,
+       "mape_seasonal_naive": 10.80634533107226,
+       "mape_train_mean": 7.332762624135047,
+       "bias_pct": -11.146463066344396,
+       "r2_oos": -1.5079784906834428
+      },
+      {
+       "series": "ORD-LGA:AA",
+       "n": 244,
+       "mape_model": 11.851045107538688,
+       "mape_seasonal_naive": 13.472664446234317,
+       "mape_train_mean": 12.753172256283623,
+       "bias_pct": -10.970634344492332,
+       "r2_oos": -0.2717028822960239
+      },
+      {
+       "series": "SYD-LHR:QF",
+       "n": 244,
+       "mape_model": 12.09829127356057,
+       "mape_seasonal_naive": 15.039003877884088,
+       "mape_train_mean": 13.572139095254546,
+       "bias_pct": -7.324186500963142,
+       "r2_oos": -0.4350852964611891
+      },
+      {
+       "series": "ORD-LGA:UA",
+       "n": 244,
+       "mape_model": 12.120089355866467,
+       "mape_seasonal_naive": 13.748565561477413,
+       "mape_train_mean": 12.174631365743458,
+       "bias_pct": -11.481875643046243,
+       "r2_oos": -0.4736934180762238
+      },
+      {
+       "series": "SYD-LHR:QR",
+       "n": 244,
+       "mape_model": 12.282357083366554,
+       "mape_seasonal_naive": 14.453455083034514,
+       "mape_train_mean": 12.682606717181272,
+       "bias_pct": -7.719066600453048,
+       "r2_oos": -0.5510008199576291
+      },
+      {
+       "series": "SYD-LHR:SQ",
+       "n": 244,
+       "mape_model": 12.709492721202867,
+       "mape_seasonal_naive": 14.895514142784247,
+       "mape_train_mean": 14.28910664586414,
+       "bias_pct": -5.703698297608879,
+       "r2_oos": -0.39822778070789466
+      },
+      {
+       "series": "JFK-SFO:AA",
+       "n": 244,
+       "mape_model": 12.851413571112214,
+       "mape_seasonal_naive": 13.096769022327809,
+       "mape_train_mean": 10.767190943100001,
+       "bias_pct": -10.49333033045038,
+       "r2_oos": -0.797103149755517
+      },
+      {
+       "series": "SYD-LHR:EK",
+       "n": 244,
+       "mape_model": 12.906771954760144,
+       "mape_seasonal_naive": 14.785197141294844,
+       "mape_train_mean": 13.946131368803844,
+       "bias_pct": -7.061610569404242,
+       "r2_oos": -0.4558395534174051
+      },
+      {
+       "series": "SYD-LHR:BA",
+       "n": 244,
+       "mape_model": 12.974863909218614,
+       "mape_seasonal_naive": 15.132989686745999,
+       "mape_train_mean": 13.716340542981495,
+       "bias_pct": -6.528594162855008,
+       "r2_oos": -0.4765524834855228
+      },
+      {
+       "series": "SYD-LHR:CX",
+       "n": 244,
+       "mape_model": 13.572764805928298,
+       "mape_seasonal_naive": 15.699178498417176,
+       "mape_train_mean": 13.178278985128134,
+       "bias_pct": -7.845095485983389,
+       "r2_oos": -0.5623816264605419
+      },
+      {
+       "series": "JFK-SFO:DL",
+       "n": 244,
+       "mape_model": 13.578601009221266,
+       "mape_seasonal_naive": 12.926337115540138,
+       "mape_train_mean": 11.617863351085626,
+       "bias_pct": -10.78821232807499,
+       "r2_oos": -0.7358376995152647
+      },
+      {
+       "series": "JFK-SFO:B6",
+       "n": 244,
+       "mape_model": 13.978532947792086,
+       "mape_seasonal_naive": 13.362305337666156,
+       "mape_train_mean": 11.81158658763401,
+       "bias_pct": -10.760489676995768,
+       "r2_oos": -0.7813460992436327
+      },
+      {
+       "series": "JFK-SFO:UA",
+       "n": 244,
+       "mape_model": 14.241837610961536,
+       "mape_seasonal_naive": 14.357857265705231,
+       "mape_train_mean": 12.005790881266774,
+       "bias_pct": -10.73377217261371,
+       "r2_oos": -0.7270989610429259
+      },
+      {
+       "series": "LAX-JFK:UA",
+       "n": 244,
+       "mape_model": 14.51981944282589,
+       "mape_seasonal_naive": 14.75105986485598,
+       "mape_train_mean": 16.208155100072894,
+       "bias_pct": -12.886601737824183,
+       "r2_oos": -0.2633910091672804
+      },
+      {
+       "series": "JFK-LAX:B6",
+       "n": 244,
+       "mape_model": 14.628907243534547,
+       "mape_seasonal_naive": 14.564075387377729,
+       "mape_train_mean": 10.784287187415309,
+       "bias_pct": -13.275972307417137,
+       "r2_oos": -2.1840324948046943
+      },
+      {
+       "series": "LAX-JFK:AA",
+       "n": 244,
+       "mape_model": 14.74123558989849,
+       "mape_seasonal_naive": 14.126214667372272,
+       "mape_train_mean": 16.295512327948096,
+       "bias_pct": -13.041285782224127,
+       "r2_oos": -0.2358753430192948
+      },
+      {
+       "series": "LHR-SYD:QR",
+       "n": 244,
+       "mape_model": 14.996170621801811,
+       "mape_seasonal_naive": 19.112323690187974,
+       "mape_train_mean": 16.327270082803707,
+       "bias_pct": 2.167004251710009,
+       "r2_oos": -0.7791900920569328
+      },
+      {
+       "series": "JFK-LAX:UA",
+       "n": 244,
+       "mape_model": 15.058442039616724,
+       "mape_seasonal_naive": 13.894130287637902,
+       "mape_train_mean": 10.987804686306882,
+       "bias_pct": -13.512886507549124,
+       "r2_oos": -2.685185645619937
+      },
+      {
+       "series": "LAX-JFK:B6",
+       "n": 244,
+       "mape_model": 15.059101948259867,
+       "mape_seasonal_naive": 15.193787344345111,
+       "mape_train_mean": 16.727499775185652,
+       "bias_pct": -13.134073049409622,
+       "r2_oos": -0.2937105545253589
+      },
+      {
+       "series": "LHR-SYD:SQ",
+       "n": 244,
+       "mape_model": 15.101643192564337,
+       "mape_seasonal_naive": 19.21683045781565,
+       "mape_train_mean": 16.08898371617492,
+       "bias_pct": 1.5708595344055216,
+       "r2_oos": -0.6467487925968867
+      },
+      {
+       "series": "LHR-SYD:BA",
+       "n": 244,
+       "mape_model": 15.127651091863623,
+       "mape_seasonal_naive": 19.992142811218244,
+       "mape_train_mean": 15.622506644045961,
+       "bias_pct": 1.6080144038327355,
+       "r2_oos": -0.8794349716180201
+      },
+      {
+       "series": "LAX-JFK:DL",
+       "n": 244,
+       "mape_model": 15.141101773805312,
+       "mape_seasonal_naive": 14.782851624121562,
+       "mape_train_mean": 16.298701879151313,
+       "bias_pct": -13.45475272882253,
+       "r2_oos": -0.31022132300695815
+      },
+      {
+       "series": "LHR-SYD:QF",
+       "n": 244,
+       "mape_model": 15.291753351832307,
+       "mape_seasonal_naive": 19.65763505610056,
+       "mape_train_mean": 16.42815654848127,
+       "bias_pct": 2.670148709782442,
+       "r2_oos": -0.9700538138279138
+      },
+      {
+       "series": "LHR-SYD:CX",
+       "n": 244,
+       "mape_model": 15.367624921441958,
+       "mape_seasonal_naive": 20.817775699867124,
+       "mape_train_mean": 17.13814724092302,
+       "bias_pct": 2.655374433221449,
+       "r2_oos": -0.7668473850711008
+      },
+      {
+       "series": "JFK-LAX:DL",
+       "n": 244,
+       "mape_model": 16.028488351570385,
+       "mape_seasonal_naive": 15.094479037813604,
+       "mape_train_mean": 11.765476082598466,
+       "bias_pct": -14.203320879202487,
+       "r2_oos": -2.4675972110254274
+      },
+      {
+       "series": "LHR-SYD:EK",
+       "n": 244,
+       "mape_model": 16.086521783600652,
+       "mape_seasonal_naive": 18.963962409219523,
+       "mape_train_mean": 16.637591019210028,
+       "bias_pct": 2.2240823862360983,
+       "r2_oos": -0.7865232519400309
+      },
+      {
+       "series": "JFK-LAX:AA",
+       "n": 244,
+       "mape_model": 16.3109161030695,
+       "mape_seasonal_naive": 15.397957076765017,
+       "mape_train_mean": 12.30281431385436,
+       "bias_pct": -14.288292853825723,
+       "r2_oos": -2.4620796843666204
+      }
+     ],
+     "r2_oos_median_series": -0.302
+    },
+    "timing": {
+     "anchor_dtd": 60,
+     "n_flights": 1768,
+     "avg_saving_vs_buy_now_pct": 1.69,
+     "median_saving_vs_buy_now_pct": 1.52,
+     "std_saving_pct": 2.04,
+     "std_saving_usd": 4.77,
+     "avg_saving_usd": 3.43,
+     "saving_pct_percentiles": {
+      "p10": -0.36,
+      "p25": 0.0,
+      "p50": 1.52,
+      "p75": 3.15,
+      "p90": 4.52
+     },
+     "avg_possible_saving_pct": 4.35,
+     "capture_ratio": 0.309,
+     "pct_flights_advice_helped": 68.3,
+     "pct_flights_advice_hurt": 8.9
+    }
+   }
+  ]
  }
 }

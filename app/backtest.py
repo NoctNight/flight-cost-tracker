@@ -37,17 +37,18 @@ def price_backtest(fares: pd.DataFrame, oil: pd.Series,
     cutoff, test_end = pd.Timestamp(cutoff), pd.Timestamp(test_end)
     train = fares[(fares["search_date"] <= cutoff) & (fares["flight_date"] <= cutoff)]
     curve = M.fit_booking_curve(train)
-    idx_train = M.daily_index(train, curve)
+    idx_train = M.daily_index(train, curve, agg=M.INDEX_AGG)
     oa = M.oil_lag_analysis(idx_train, oil)
     oil_term = M.make_oil_term(oil, oa["best_lag_days"],
                                idx_train["flight_date"].min(),
                                pd.Timestamp(test_end), freeze_after=cutoff)
-    models = M.fit_series_models(idx_train, oil_term, oa["elasticity"] or 0.0,
+    oil_beta = M.estimate_oil_beta(idx_train, oil_term, **M.MODEL_CONFIG)
+    models = M.fit_series_models(idx_train, oil_term, oil_beta,
                                  **M.MODEL_CONFIG)
 
     # realised index over the test window, normalised with the TRAIN curve
     test_obs = fares[(fares["flight_date"] > cutoff) & (fares["flight_date"] <= test_end)]
-    idx_test = M.daily_index(test_obs, curve)
+    idx_test = M.daily_index(test_obs, curve, agg=M.INDEX_AGG)
 
     rows, pooled = [], {"y": [], "yhat": [], "naive": [], "mean": []}
     for s, m in models.items():
