@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Farecast</title>
+<style>
+:root{
+  color-scheme: light;
+  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink-2:#52514e;
+  --muted:#898781; --grid:#e1e0d9; --axis:#c3c2b7;
+  --border:rgba(11,11,11,.10); --wash:rgba(11,11,11,.04);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b; --good-text:#006300;
+  --div-mid:#f0efec;
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink-2:#c3c2b7;
+    --muted:#898781; --grid:#2c2c2a; --axis:#383835;
+    --border:rgba(255,255,255,.10); --wash:rgba(255,255,255,.06);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+    --good-text:#0ca30c; --div-mid:#383835;
+  }
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--page); color:var(--ink);
+  font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
+  padding-block:0 64px; padding-inline:clamp(16px,4vw,48px);
+}
+header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding:28px 2px 6px}
+header h1{font-size:21px;font-weight:650;letter-spacing:-.02em;margin:0}
+header .sub{color:var(--ink-2)}
+.badge{font-size:11px;font-weight:600;letter-spacing:.06em;border:1px solid var(--border);
+  border-radius:999px;padding:2px 10px;color:var(--ink-2);background:var(--surface)}
+.badge.synthetic{color:#8a5a00;border-color:#e8c476;background:rgba(250,178,25,.10)}
+main{display:grid;gap:18px;max-width:1180px;margin:14px auto 0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px 22px; box-shadow:0 1px 2px rgba(11,11,11,.03)}
+.card h2{font-size:15px;font-weight:650;margin:0 0 2px}
+.card .hint{color:var(--muted);font-size:12.5px;margin:0 0 14px}
+.cardhead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:880px){.row2{grid-template-columns:1fr}}
+/* search */
+.searchbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+select,input[type=date],button{
+  font:inherit;color:var(--ink);background:var(--surface);
+  border:1px solid var(--border);border-radius:10px;padding:9px 12px}
+select:focus,input:focus,button:focus-visible{outline:2px solid var(--s1);outline-offset:1px}
+button.primary{background:var(--ink);color:var(--page);border-color:var(--ink);
+  font-weight:600;cursor:pointer;padding-inline:18px}
+button.ghost{cursor:pointer;color:var(--ink-2);font-size:12px;padding:5px 10px;border-radius:8px}
+button.ghost:hover{background:var(--wash)}
+button.ghost[aria-pressed=true]{background:var(--wash);color:var(--ink)}
+.arrow{color:var(--muted);font-size:16px}
+/* result lists */
+.results{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:16px}
+@media(max-width:880px){.results{grid-template-columns:1fr}}
+.results h3{font-size:13px;font-weight:650;margin:0 0 8px;color:var(--ink-2)}
+ul.flights{list-style:none;margin:0;padding:0}
+ul.flights li{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;
+  border:1px solid transparent;cursor:pointer}
+ul.flights li:hover{background:var(--wash)}
+ul.flights li[aria-selected=true]{border-color:var(--border);background:var(--wash)}
+.f-date{width:112px;font-weight:600}
+.f-dow{color:var(--muted);width:34px}
+.f-air{width:120px;color:var(--ink-2)}
+.f-fare{margin-left:auto;font-weight:650}
+.f-note{color:var(--muted);font-size:12px}
+.chip{font-size:11px;font-weight:650;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.chip.now{background:rgba(12,163,12,.12);color:var(--good-text)}
+.chip.wait{background:rgba(42,120,214,.12);color:var(--s1)}
+.saving{color:var(--good-text);font-size:12px;font-weight:600}
+/* stat tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:6px 0 14px}
+.tile{border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.tile .lab{font-size:12px;color:var(--muted)}
+.tile .val{font-size:24px;font-weight:650;letter-spacing:-.01em}
+.tile .note{font-size:11.5px;color:var(--muted)}
+.hero .val{font-size:48px}
+/* chart chrome */
+.chart{position:relative}
+.chart svg{display:block;width:100%;height:auto}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin:4px 0 8px;font-size:12.5px;color:var(--ink-2)}
+.legend .key{display:inline-flex;align-items:center;gap:6px}
+.key .line{width:16px;height:0;border-top:2.5px solid;border-radius:2px}
+.key .line.dash{border-top-style:dashed}
+.key .swatch{width:11px;height:11px;border-radius:3px}
+.tooltip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:8px 11px;font-size:12.5px;box-shadow:0 4px 14px rgba(11,11,11,.10);
+  min-width:130px;z-index:5;display:none}
+.tooltip .tt-x{color:var(--muted);margin-bottom:4px}
+.tooltip .tt-row{display:flex;align-items:center;gap:7px}
+.tooltip .tt-val{margin-left:auto;font-weight:650;font-variant-numeric:tabular-nums}
+.tooltip .tt-key{width:12px;height:0;border-top:2.5px solid;border-radius:2px}
+table.dataview{border-collapse:collapse;width:100%;font-size:12.5px;margin-top:8px}
+table.dataview th,table.dataview td{border-bottom:1px solid var(--grid);padding:5px 8px;text-align:right;
+  font-variant-numeric:tabular-nums}
+table.dataview th:first-child,table.dataview td:first-child{text-align:left}
+table.dataview th{color:var(--muted);font-weight:600}
+.tablewrap{max-height:300px;overflow:auto}
+.overflow{overflow-x:auto}
+footer{max-width:1180px;margin:26px auto 0;color:var(--muted);font-size:12px}
+footer a{color:var(--ink-2)}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.err{color:var(--crit);font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Farecast</h1>
+  <span class="sub">flight price history, forecasts &amp; when to book</span>
+  <span id="src-badge" class="badge">loading…</span>
+</header>
+
+<main>
+  <section class="card" id="search-card">
+    <h2>Search a route</h2>
+    <p class="hint">Cheapest fares on sale right now, and the flights predicted to end up cheapest if you time the purchase.</p>
+    <div class="searchbar">
+      <select id="origin" aria-label="Origin"></select>
+      <span class="arrow">→</span>
+      <select id="dest" aria-label="Destination"></select>
+      <input type="date" id="fdate" aria-label="Flight date (optional)">
+      <button class="primary" id="go">Search</button>
+      <span id="search-err" class="err"></span>
+    </div>
+    <div class="results" id="results" hidden>
+      <div>
+        <h3>Cheapest right now</h3>
+        <ul class="flights" id="list-now"></ul>
+      </div>
+      <div>
+        <h3>Predicted cheapest by departure</h3>
+        <ul class="flights" id="list-future"></ul>
+      </div>
+    </div>
+    <div id="traj-block" hidden style="margin-top:18px">
+      <div class="cardhead">
+        <div><h2 id="traj-title" style="font-size:14px"></h2>
+        <p class="hint" id="traj-sub"></p></div>
+        <button class="ghost" data-table-for="traj-chart" aria-pressed="false">Table</button>
+      </div>
+      <div class="chart" id="traj-chart"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="cardhead">
+      <div>
+        <h2>Price forecast</h2>
+        <p class="hint">Daily fare index (booking-window-normalised) per route &amp; airline; OLS on trend + annual Fourier seasonality + day-of-week. Band = 95%.</p>
+      </div>
+      <div class="controls">
+        <select id="fc-series" aria-label="Route and airline"></select>
+        <button class="ghost" data-table-for="fc-chart" aria-pressed="false">Table</button>
+      </div>
+    </div>
+    <div class="tiles" id="fc-tiles"></div>
+    <div class="chart" id="fc-chart"></div>
+  </section>
+
+  <div class="row2">
+    <section class="card">
+      <div class="cardhead">
+        <div>
+          <h2>When to book</h2>
+          <p class="hint">Fare multiplier vs days to departure (flight fixed-effects estimate). 1.0 = booking ~30 days out.</p>
+        </div>
+        <button class="ghost" data-table-for="bc-chart" aria-pressed="false">Table</button>
+      </div>
+      <div class="chart" id="bc-chart"></div>
+    </section>
+
+    <section class="card">
+      <div class="cardhead">
+        <div>
+          <h2>Oil → fares lag</h2>
+          <p class="hint">Correlation of 4-week fare changes with 4-week Brent changes shifted by each lag.</p>
+        </div>
+        <button class="ghost" data-table-for="lag-chart" aria-pressed="false">Table</button>
+      </div>
+      <div class="tiles" id="oil-tiles"></div>
+      <div class="chart" id="lag-chart"></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="cardhead">
+      <div>
+        <h2>Fares vs crude oil</h2>
+        <p class="hint">Both indexed to 100 at the start of the window (one axis, no dual scales). Fares = average of all route×airline daily indices, 7-day smoothed.</p>
+      </div>
+      <button class="ghost" data-table-for="oil-chart" aria-pressed="false">Table</button>
+    </div>
+    <div class="chart" id="oil-chart"></div>
+  </section>
+
+  <section class="card">
+    <div class="cardhead">
+      <div>
+        <h2>Co-movement between series</h2>
+        <p class="hint">Correlation of weekly fare changes between every route×airline pair. Same-route pairs (airlines matching each other's prices) vs same-airline pairs (network-wide pricing).</p>
+      </div>
+      <button class="ghost" data-table-for="corr-chart" aria-pressed="false">Table</button>
+    </div>
+    <div class="tiles" id="corr-tiles"></div>
+    <div class="chart overflow" id="corr-chart"></div>
+  </section>
+</main>
+
+<footer>
+  Oil prices: EIA daily Brent/WTI spot (public domain). Fare data source shown in the badge above —
+  see the README for how to plug in real fare data (Kaggle compaction or a collector).
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
