@@ -1,0 +1,257 @@
+"""Data loading + model cache.
+
+Priority order for fare data:
+  1. data/fares.parquet  (real data: Kaggle compaction or collector output)
+  2. synthetic generation (labelled as such), cached to data/fares_synthetic.parquet
+
+Oil: data/brent-daily.csv (EIA via datasets/oil-prices, public domain).
+"""
+from __future__ import annotations
+
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+from . import models as M
+from . import synthetic
+
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+
+
+def load_oil() -> pd.DataFrame:
+    frames = {}
+    for name in ("brent", "wti"):
+        p = DATA_DIR / f"{name}-daily.csv"
+        if p.exists():
+            df = pd.read_csv(p, parse_dates=["Date"]).set_index("Date")
+            frames[name] = df["Price"]
+    if not frames:
+        raise FileNotFoundError("no oil CSVs in data/ - run scripts/fetch_oil.py")
+    return pd.DataFrame(frames)
+
+
+
+def _f(v, nd=2):
+    return None if pd.isna(v) else float(round(float(v), nd))
+
+class Store:
+    def __init__(self) -> None:
+        self.oil = load_oil()
+        self.fares, self.data_source = self._load_fares()
+        self.fares = M.add_keys(self.fares)
+        self.today = self.fares["search_date"].max()
+
+        self.curve = M.fit_booking_curve(self.fares)
+        self.index = M.daily_index(self.fares, self.curve)
+        self.series_models = M.fit_series_models(self.index)
+        self.correlations = M.correlation_matrix(self.index)
+        self.oil_analysis = M.oil_lag_analysis(self.index, self.oil["brent"])
+
+    # ------------------------------------------------------------------ data
+    def _load_fares(self) -> tuple[pd.DataFrame, str]:
+        real = DATA_DIR / "fares.parquet"
+        if real.exists():
+            return pd.read_parquet(real), "real"
+        cached = DATA_DIR / "fares_synthetic.parquet"
+        if cached.exists():
+            df = pd.read_parquet(cached)
+            # regenerate if stale (> 3 days behind today)
+            if (pd.Timestamp.today().normalize() - df["search_date"].max()).days <= 3:
+                return df, "synthetic"
+        df = synthetic.generate(self._brent_series())
+        DATA_DIR.mkdir(exist_ok=True)
+        df.to_parquet(cached, index=False)
+        return df, "synthetic"
+
+    def _brent_series(self) -> pd.Series:
+        return self.oil["brent"]
+
+    # ------------------------------------------------------------------ meta
+    def meta(self) -> dict:
+        routes = (self.fares.groupby(["origin", "dest"])["airline"]
+                  .agg(lambda s: sorted(s.unique())).reset_index())
+        return {
+            "data_source": self.data_source,
+            "today": str(self.today.date()),
+            "search_date_range": [str(self.fares["search_date"].min().date()),
+                                  str(self.fares["search_date"].max().date())],
+            "flight_date_max": str(self.fares["flight_date"].max().date()),
+            "routes": [
+                {"origin": r.origin, "dest": r.dest, "airlines": r.airline}
+                for r in routes.itertuples()
+            ],
+            "airline_names": synthetic.AIRLINE_NAMES,
+        }
+
+    # -------------------------------------------------------------- forecast
+    def forecast(self, origin: str, dest: str, airline: str,
+                 horizon: int = 120) -> dict:
+        s = M.series_key(origin, dest, airline)
+        m = self.series_models.get(s)
+        hist = self.index[self.index["series"] == s].dropna(subset=["fare"])
+        if m is None or hist.empty:
+            return {"error": f"no model for {s}"}
+        h = hist[hist["flight_date"] <= self.today]
+        future = pd.date_range(self.today + pd.Timedelta(days=1),
+                               self.today + pd.Timedelta(days=horizon), freq="D")
+        mu, sd = m.predict(future)
+        fit_mu, _ = m.predict(pd.DatetimeIndex(h["flight_date"]))
+
+        def smooth(a):
+            return pd.Series(a).rolling(7, min_periods=1, center=True).mean().to_numpy()
+
+        # display smoothing: the dow effect makes raw fit/forecast a sawtooth
+        mu, sd, fit_mu = smooth(mu), smooth(sd), smooth(fit_mu)
+        return {
+            "series": s, "r2": _f(m.r2, 3), "n_obs": m.n,
+            "history": {
+                "dates": [str(d.date()) for d in h["flight_date"]],
+                "fare": [_f(v) for v in h["fare"]],
+                "fare_7d": [_f(v) for v in h["fare_7d"]],
+                "fitted": [_f(v) for v in fit_mu],
+            },
+            "forecast": {
+                "dates": [str(d.date()) for d in future],
+                "mean": [_f(v) for v in mu],
+                "lo": [_f(v) for v in (mu - 1.96 * sd)],
+                "hi": [_f(v) for v in (mu + 1.96 * sd)],
+            },
+        }
+
+    # ---------------------------------------------------------------- search
+    def search(self, origin: str, dest: str, flight_date: str | None = None,
+               window: int = 90) -> dict:
+        r = self.fares[(self.fares["origin"] == origin) & (self.fares["dest"] == dest)]
+        if r.empty:
+            return {"error": f"no data for {origin}-{dest}"}
+
+        # "current" = most recent search snapshot per (flight_date, airline)
+        recent = r[r["search_date"] >= self.today - pd.Timedelta(days=2)]
+        snap = (recent.sort_values("search_date")
+                      .groupby(["flight_date", "airline"], as_index=False).last())
+        if flight_date:
+            fd = pd.Timestamp(flight_date)
+            snap = snap[(snap["flight_date"] >= fd - pd.Timedelta(days=3)) &
+                        (snap["flight_date"] <= fd + pd.Timedelta(days=3))]
+        else:
+            snap = snap[(snap["flight_date"] > self.today) &
+                        (snap["flight_date"] <= self.today + pd.Timedelta(days=window))]
+        snap = snap.sort_values("fare")
+
+        cheapest_now = [{
+            "flight_date": str(row.flight_date.date()),
+            "dow": row.flight_date.strftime("%a"),
+            "airline": row.airline,
+            "fare": _f(row.fare),
+            "dtd": int((row.flight_date - self.today).days),
+        } for row in snap.head(12).itertuples()]
+
+        # future-minimum per candidate flight: trajectory of predicted price
+        # for every remaining buy day, anchored to today's observed price.
+        best = []
+        for row in snap.head(40).itertuples():
+            traj = self._trajectory(origin, dest, row.airline,
+                                    row.flight_date, row.fare)
+            if traj is None:
+                continue
+            i_min = int(np.argmin(traj["mean"]))
+            best.append({
+                "flight_date": str(row.flight_date.date()),
+                "dow": row.flight_date.strftime("%a"),
+                "airline": row.airline,
+                "fare_now": _f(row.fare),
+                "predicted_min": _f(traj["mean"][i_min]),
+                "best_buy_date": traj["dates"][i_min],
+                "expected_saving": _f(row.fare - traj["mean"][i_min]),
+                "verdict": "wait" if traj["mean"][i_min] < row.fare * 0.97 else "book now",
+            })
+        best.sort(key=lambda x: x["predicted_min"])
+        return {
+            "origin": origin, "dest": dest, "today": str(self.today.date()),
+            "cheapest_now": cheapest_now,
+            "cheapest_eventually": best[:12],
+        }
+
+    def _trajectory(self, origin: str, dest: str, airline: str,
+                    flight_date: pd.Timestamp, fare_now: float) -> dict | None:
+        """Predicted fare for each remaining buy date, anchored to the
+        currently observed fare (model supplies the *shape* via the booking
+        curve; the level is calibrated to today's price)."""
+        s = M.series_key(origin, dest, airline)
+        if s not in self.series_models:
+            return None
+        route = f"{origin}-{dest}"
+        buy_dates = pd.date_range(self.today, flight_date - pd.Timedelta(days=1), freq="D")
+        if len(buy_dates) == 0:
+            return None
+        dtd = (flight_date - buy_dates).days.to_numpy()
+        curve = self.curve.value(dtd, route)
+        curve_now = self.curve.value(np.array([dtd[0]]), route)[0]
+        mean = fare_now * curve / curve_now
+        sigma = self.series_models[s].sigma
+        # uncertainty grows with distance from the anchor
+        grow = np.sqrt(np.arange(len(buy_dates)) / max(len(buy_dates), 1) + 1e-9)
+        return {
+            "dates": [str(d.date()) for d in buy_dates],
+            "mean": mean.tolist(),
+            "lo": (mean * np.exp(-1.28 * sigma * grow)).tolist(),
+            "hi": (mean * np.exp(1.28 * sigma * grow)).tolist(),
+        }
+
+    def trajectory_api(self, origin, dest, airline, flight_date) -> dict:
+        fd = pd.Timestamp(flight_date)
+        r = self.fares[(self.fares["origin"] == origin) & (self.fares["dest"] == dest) &
+                       (self.fares["airline"] == airline) & (self.fares["flight_date"] == fd)]
+        recent = r[r["search_date"] >= self.today - pd.Timedelta(days=2)]
+        if recent.empty:
+            return {"error": "no current observation for that flight"}
+        fare_now = float(recent.sort_values("search_date")["fare"].iloc[-1])
+        # observed history of this exact flight's price so far
+        hist = r.sort_values("search_date")
+        traj = self._trajectory(origin, dest, airline, fd, fare_now)
+        if traj is None:
+            return {"error": "no model"}
+        return {
+            "flight_date": str(fd.date()), "airline": airline, "fare_now": _f(fare_now),
+            "observed": {
+                "dates": [str(d.date()) for d in hist["search_date"]],
+                "fare": [_f(v) for v in hist["fare"]],
+            },
+            "predicted": traj,
+        }
+
+    # ----------------------------------------------------------------- oil api
+    def oil_api(self) -> dict:
+        a = self.oil_analysis
+        days = pd.date_range(self.index["flight_date"].min(), self.today, freq="D")
+        brent = self.oil["brent"].reindex(days).ffill()
+        piv = self.index.pivot_table(index="flight_date", columns="series", values="fare_7d")
+        fare_avg = piv.mean(axis=1).reindex(days)
+        b0 = brent.dropna().iloc[0]
+        f0 = fare_avg.dropna().iloc[0]
+        return {
+            **a,
+            "dates": [str(d.date()) for d in days],
+            "brent_indexed": [_f(100 * v / b0) for v in brent],
+            "fare_indexed": [_f(100 * v / f0) for v in fare_avg],
+        }
+
+    def booking_curve_api(self, origin: str | None = None, dest: str | None = None) -> dict:
+        route = f"{origin}-{dest}" if origin and dest else None
+        dtd = np.arange(0, 120)
+        return {
+            "route": route if route in self.curve.per_route else "all routes",
+            "dtd": dtd.tolist(),
+            "multiplier": [_f(v, 4) for v in self.curve.value(dtd, route)],
+        }
+
+
+_store: Store | None = None
+
+
+def get_store() -> Store:
+    global _store
+    if _store is None:
+        _store = Store()
+    return _store
