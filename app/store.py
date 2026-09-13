@@ -188,12 +188,13 @@ class Store:
         r = self.fares[(self.fares["origin"] == origin) & (self.fares["dest"] == dest)]
         if r.empty:
             return {"error": f"no data for {route}"}
-        recent = r[r["search_date"] >= self.today - pd.Timedelta(days=2)]
+        # 4-day lookback: beyond 90 days out the collector polls every 3rd day
+        recent = r[r["search_date"] >= self.today - pd.Timedelta(days=4)]
         snap = (recent.sort_values("search_date")
                       .groupby(["flight_date", "airline"], as_index=False).last())
         snap = snap[snap["flight_date"] > self.today]
 
-        dgrid = np.arange(0, 121)
+        dgrid = np.arange(0, 181)
         cv = self.curve.value(dgrid, route)
         # over buy days 1..dtd: cheapest remaining curve point and its dtd
         cmin = np.minimum.accumulate(cv[1:])          # index i -> min over dtd 1..i+1
@@ -207,7 +208,7 @@ class Store:
         out = []
         for row in snap.itertuples():
             dtd = int((row.flight_date - self.today).days)
-            if dtd < 1 or dtd > 120:
+            if dtd < 1 or dtd > 180:
                 continue
             ratio = float(cmin[dtd - 1] / cv[dtd])
             pm = row.fare * ratio
