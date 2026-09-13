@@ -205,6 +205,16 @@ footer a{color:var(--ink-2)}
   <section class="card">
     <div class="cardhead">
       <div>
+        <h2>Out-of-sample validation</h2>
+        <p class="hint">Models refitted using only data before the cutoff (booking curve, index normalisation and regressions alike), then scored blind on the following period. Baselines: seasonal-naive = same date last year; train-mean = series average. Timing advice judged 60 days before each departure.</p>
+      </div>
+    </div>
+    <div class="row2" id="bt-splits"></div>
+  </section>
+
+  <section class="card">
+    <div class="cardhead">
+      <div>
         <h2>Co-movement between series</h2>
         <p class="hint">Correlation of weekly fare changes between every route×airline pair. Same-route pairs (airlines matching each other's prices) vs same-airline pairs (network-wide pricing).</p>
       </div>

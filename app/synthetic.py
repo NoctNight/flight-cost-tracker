@@ -29,6 +29,14 @@ ROUTES = {
     ("BOS", "LAX"): (270.0, {"B6": 0.92, "DL": 1.00, "UA": 1.01, "AA": 1.03}),
     ("ORD", "DEN"): (140.0, {"UA": 1.00, "WN": 0.91, "AA": 1.02}),
     ("SEA", "SFO"): (120.0, {"AS": 0.94, "UA": 1.00, "DL": 1.03}),
+    # Kangaroo route: long-haul one-ways, higher fuel share, peak around the
+    # southern-summer/Christmas period, best booked much earlier than short-haul
+    ("SYD", "LHR"): (1150.0, {"QF": 1.06, "BA": 1.03, "SQ": 1.00, "EK": 0.92,
+                              "QR": 0.90, "CX": 0.96},
+                     {"amp": 0.16, "peak_doy": 358, "oil_mult": 1.6, "dtd_scale": 0.55}),
+    ("LHR", "SYD"): (1120.0, {"QF": 1.05, "BA": 1.04, "SQ": 1.00, "EK": 0.93,
+                              "QR": 0.91, "CX": 0.97},
+                     {"amp": 0.15, "peak_doy": 352, "oil_mult": 1.6, "dtd_scale": 0.55}),
 }
 
 # Observation grid: days-to-departure at which each flight's fare is "seen".
@@ -37,6 +45,8 @@ DTD_GRID = np.arange(1, 91)  # daily quotes out to 90 days, like real scraped da
 AIRLINE_NAMES = {
     "AA": "American", "DL": "Delta", "UA": "United", "B6": "JetBlue",
     "WN": "Southwest", "AS": "Alaska", "NK": "Spirit",
+    "QF": "Qantas", "BA": "British Airways", "SQ": "Singapore Airlines",
+    "EK": "Emirates", "QR": "Qatar Airways", "CX": "Cathay Pacific",
 }
 
 
@@ -84,11 +94,19 @@ def generate(
     dow = flight_dates.dayofweek.to_numpy()
     # travel-date effects: Fri/Sun expensive, Tue/Wed cheap
     dow_fac = np.array([0.99, 0.955, 0.95, 0.99, 1.07, 0.97, 1.06])[dow]
-    oil_fac = np.exp(OIL_ELASTICITY * (oil_lagged.reindex(flight_dates).to_numpy() - oil_ref))
+    oil_dev = oil_lagged.reindex(flight_dates).to_numpy() - oil_ref
 
     rows = []
-    for r_i, ((origin, dest), (base, airlines)) in enumerate(ROUTES.items()):
-        season = _seasonal(doy, phase=0.6 + 0.5 * r_i, amp=0.10 + 0.02 * (r_i % 3))
+    for r_i, ((origin, dest), spec) in enumerate(ROUTES.items()):
+        base, airlines = spec[0], spec[1]
+        opts = spec[2] if len(spec) > 2 else {}
+        if "peak_doy" in opts:
+            # anchor the annual peak to a specific day of year
+            phase = np.pi / 2 - 2 * np.pi * opts["peak_doy"] / 365.25
+        else:
+            phase = 0.6 + 0.5 * r_i
+        season = _seasonal(doy, phase=phase,
+                           amp=opts.get("amp", 0.10 + 0.02 * (r_i % 3)))
         # slow structural drift per route
         t = (flight_dates - start_ts).days.to_numpy(dtype=float)
         drift = 1.0 + 0.00006 * t * (1 if r_i % 2 == 0 else -0.6)
@@ -100,6 +118,7 @@ def generate(
         eps = rng.normal(0, 0.035, n)
         for i in range(1, n):
             shock[i] = 0.88 * shock[i - 1] + eps[i]
+        oil_fac = np.exp(OIL_ELASTICITY * opts.get("oil_mult", 1.0) * oil_dev)
         route_level = base * season * dow_fac * drift * oil_fac * np.exp(shock)
 
         for airline, fac in airlines.items():
@@ -111,12 +130,13 @@ def generate(
                 a_shock[i] = 0.8 * a_shock[i - 1] + a_eps[i]
             level = route_level * fac * np.exp(a_shock)
 
+            dtd_scale = opts.get("dtd_scale", 1.0)
             for dtd in DTD_GRID:
                 sd = flight_dates - pd.Timedelta(days=int(dtd))
                 mask = (sd >= start_ts) & (sd <= today)
                 if not mask.any():
                     continue
-                fare = level[mask] * booking_curve(np.array([dtd]))[0]
+                fare = level[mask] * booking_curve(np.array([dtd * dtd_scale]))[0]
                 fare = fare * np.exp(rng.normal(0, 0.015, mask.sum()))  # obs noise
                 rows.append(pd.DataFrame({
                     "search_date": sd[mask],
