@@ -75,3 +75,26 @@ def test_api_endpoints(client):
 def test_unknown_route(client):
     r = client.get("/api/search?origin=XXX&dest=YYY")
     assert r.status_code == 200 and "error" in r.json()
+
+
+def test_long_haul_route(store):
+    """SYD-LHR: search works and its booking curve rewards booking early."""
+    r = store.search("SYD", "LHR")
+    assert r["cheapest_now"], "no SYD-LHR quotes"
+    lh = store.booking_curve_api("SYD", "LHR")
+    assert lh["route"] == "SYD-LHR"
+    us = store.booking_curve_api("JFK", "LAX")
+    # long-haul keeps getting cheaper toward 90d out; short-haul doesn't
+    assert lh["multiplier"][85] < 0.97 < us["multiplier"][85]
+
+
+def test_backtest_out_of_sample(store):
+    """Blind holdout: model must beat the train-mean baseline and the
+    timing advice must not lose money on average."""
+    bt = store.backtest_api()
+    for sp in bt["splits"]:
+        p, t = sp["price"], sp["timing"]
+        assert p["mape_model"] < p["mape_train_mean"]
+        assert abs(p["bias_pct"]) < 15
+        assert t["avg_saving_vs_buy_now_pct"] > 0
+        assert t["pct_flights_advice_helped"] > t["pct_flights_advice_hurt"]

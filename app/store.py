@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from . import backtest
 from . import models as M
 from . import synthetic
 
@@ -236,6 +237,15 @@ class Store:
             "brent_indexed": [_f(100 * v / b0) for v in brent],
             "fare_indexed": [_f(100 * v / f0) for v in fare_avg],
         }
+
+    def backtest_api(self) -> dict:
+        if not hasattr(self, "_backtest"):
+            r = backtest.run(self.fares)
+            for sp in r["splits"]:  # honest R2: median across series, not pooled
+                med = float(np.median([x["r2_oos"] for x in sp["price"]["per_series"]]))
+                sp["price"]["r2_oos_median_series"] = round(med, 3)
+            self._backtest = r
+        return self._backtest
 
     def booking_curve_api(self, origin: str | None = None, dest: str | None = None) -> dict:
         route = f"{origin}-{dest}" if origin and dest else None

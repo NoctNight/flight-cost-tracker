@@ -281,6 +281,7 @@ async function boot() {
   loadBookingCurve();
   loadOil();
   loadCorr();
+  loadBacktest();
   runSearch();
 }
 
@@ -432,6 +433,42 @@ async function loadOil() {
       {name: "Brent crude (=100 at start)", color: css("--s2"), values: r.brent_indexed},
     ],
   });
+}
+
+async function loadBacktest() {
+  const r = await api("/api/backtest");
+  const wrap = $("#bt-splits"); wrap.innerHTML = "";
+  for (const sp of r.splits) {
+    const p = sp.price, t = sp.timing;
+    const col = document.createElement("div");
+    const h = document.createElement("h3");
+    h.style.cssText = "font-size:13px;margin:0 0 8px;color:var(--ink-2)";
+    h.textContent = `Train \u2264 ${p.cutoff} \u2192 test to ${p.test_end}`;
+    const tiles = document.createElement("div"); tiles.className = "tiles";
+    tiles.append(
+      tile("Forecast MAPE", p.mape_model + "%", `${p.n_series} series · ${p.n_obs.toLocaleString()} daily obs`),
+      tile("Seasonal-naive MAPE", p.mape_seasonal_naive + "%", "baseline: same date last year"),
+      tile("Train-mean MAPE", p.mape_train_mean + "%", "baseline: series average"),
+      tile("Bias", (p.bias_pct > 0 ? "+" : "") + p.bias_pct + "%", "OOS R\u00b2 (median series) " + p.r2_oos_median_series),
+      tile("Timing: avg saving", (t.avg_saving_vs_buy_now_pct > 0 ? "+" : "") + t.avg_saving_vs_buy_now_pct + "%",
+           `vs buying immediately · ${t.n_flights} flights`),
+      tile("Advice helped", t.pct_flights_advice_helped + "%",
+           `hurt ${t.pct_flights_advice_hurt}% · captured ${Math.round(t.capture_ratio * 100)}% of oracle`),
+    );
+    const btn = document.createElement("button");
+    btn.className = "ghost"; btn.textContent = "Per-series table";
+    const chartStub = document.createElement("div");
+    chartStub.id = "bt-" + p.cutoff;
+    chartStub._tabledata = {
+      head: ["series", "n", "MAPE %", "naive %", "bias %", "R\u00b2 oos"],
+      rows: p.per_series.map(x => [x.series, x.n, x.mape_model.toFixed(1),
+        x.mape_seasonal_naive.toFixed(1), x.bias_pct.toFixed(1), x.r2_oos.toFixed(2)]),
+    };
+    btn.dataset.tableFor = chartStub.id;
+    btn.setAttribute("aria-pressed", "false");
+    col.append(h, tiles, btn, chartStub);
+    wrap.appendChild(col);
+  }
 }
 
 async function loadCorr() {

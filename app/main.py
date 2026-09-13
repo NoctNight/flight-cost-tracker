@@ -57,6 +57,11 @@ def oil():
     return get_store().oil_api()
 
 
+@app.get("/api/backtest")
+def backtest():
+    return get_store().backtest_api()
+
+
 @app.get("/api/booking_curve")
 def booking_curve(origin: str | None = None, dest: str | None = None):
     return get_store().booking_curve_api(origin, dest)
