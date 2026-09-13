@@ -32,12 +32,18 @@ def _seasonal_naive(idx_train: pd.DataFrame, test: pd.DataFrame) -> np.ndarray:
     return tr.reindex(keys).to_numpy()
 
 
-def price_backtest(fares: pd.DataFrame, cutoff: str, test_end: str) -> dict:
+def price_backtest(fares: pd.DataFrame, oil: pd.Series,
+                   cutoff: str, test_end: str) -> dict:
     cutoff, test_end = pd.Timestamp(cutoff), pd.Timestamp(test_end)
     train = fares[(fares["search_date"] <= cutoff) & (fares["flight_date"] <= cutoff)]
     curve = M.fit_booking_curve(train)
     idx_train = M.daily_index(train, curve)
-    models = M.fit_series_models(idx_train)
+    oa = M.oil_lag_analysis(idx_train, oil)
+    oil_term = M.make_oil_term(oil, oa["best_lag_days"],
+                               idx_train["flight_date"].min(),
+                               pd.Timestamp(test_end), freeze_after=cutoff)
+    models = M.fit_series_models(idx_train, oil_term, oa["elasticity"] or 0.0,
+                                 **M.MODEL_CONFIG)
 
     # realised index over the test window, normalised with the TRAIN curve
     test_obs = fares[(fares["flight_date"] > cutoff) & (fares["flight_date"] <= test_end)]
@@ -115,10 +121,21 @@ def timing_backtest(fares: pd.DataFrame, cutoff: str, test_end: str,
     possible = (imm - orc) / imm * 100
     with np.errstate(invalid="ignore", divide="ignore"):
         capture = np.where(imm - orc > 1e-9, (imm - real) / (imm - orc), np.nan)
+    dollars = imm - real
     return {
         "anchor_dtd": anchor_dtd, "n_flights": int(len(a)),
         "avg_saving_vs_buy_now_pct": round(float(saving.mean()), 2),
         "median_saving_vs_buy_now_pct": round(float(np.median(saving)), 2),
+        "std_saving_pct": round(float(saving.std(ddof=1)), 2),
+        "std_saving_usd": round(float(dollars.std(ddof=1)), 2),
+        "avg_saving_usd": round(float(dollars.mean()), 2),
+        "saving_pct_percentiles": {
+            "p10": round(float(np.percentile(saving, 10)), 2),
+            "p25": round(float(np.percentile(saving, 25)), 2),
+            "p50": round(float(np.percentile(saving, 50)), 2),
+            "p75": round(float(np.percentile(saving, 75)), 2),
+            "p90": round(float(np.percentile(saving, 90)), 2),
+        },
         "avg_possible_saving_pct": round(float(possible.mean()), 2),
         "capture_ratio": round(float(np.nanmean(np.clip(capture, -1, 1))), 3),
         "pct_flights_advice_helped": round(float((saving > 0).mean() * 100), 1),
@@ -126,11 +143,11 @@ def timing_backtest(fares: pd.DataFrame, cutoff: str, test_end: str,
     }
 
 
-def run(fares: pd.DataFrame, splits=None) -> dict:
+def run(fares: pd.DataFrame, oil: pd.Series, splits=None) -> dict:
     splits = splits or [("2024-12-31", "2025-12-31"), ("2025-12-31", "2026-09-01")]
     out = []
     for cutoff, test_end in splits:
-        p = price_backtest(fares, cutoff, test_end)
+        p = price_backtest(fares, oil, cutoff, test_end)
         t = timing_backtest(fares, cutoff, test_end)
         out.append({"price": p, "timing": t})
     return {"splits": out}

@@ -23,9 +23,15 @@ All models run on a daily observation table
 
 1. **Daily fare index + linear regression** (`app/models.py`).
    Fares are normalised by the booking curve to a per-day price index for each
-   route × airline (1-day granularity, 7-day rolling average). An OLS
-   regression on log fare — linear trend + annual Fourier seasonality
-   (2 harmonics) + day-of-week — produces the forecast with a 95 % band.
+   route × airline (1-day granularity, 7-day rolling average). A regression on
+   log fare — annual Fourier seasonality (2 harmonics) + day-of-week + a
+   lagged-oil term whose coefficient is fixed to the elasticity from the lag
+   model (free-fitting it is collinear with seasonality on short windows) —
+   produces the forecast with a 95 % band. Observations are recency-weighted
+   (2-year half-life). This configuration was chosen by
+   `scripts/sweep.py` on a validation year and confirmed once on a held-out
+   test year (`data/sweep_results.json`); notably the linear trend term was
+   *dropped* — it extrapolates noise and cost ~3pp MAPE out of sample.
 
 2. **Booking curve ("when to book")**. Log-fare regressed on
    days-to-departure buckets with flight fixed effects (within-flight
@@ -85,5 +91,10 @@ recover the planted structure (lag found: ~51 days; same-route correlation
 * With only ~6 months of real Kaggle history, the oil-lag model cannot be
   identified reliably — it needs multi-year fare history. On synthetic data it
   demonstrably works; treat real-data lag estimates as indicative only.
-* Fare forecasting with OLS on trend + seasonality gives calibrated *typical*
-  prices; it will not predict fare sales or capacity shocks.
+* Fare forecasting on seasonality + lagged oil gives calibrated *typical*
+  prices; it will not predict fare sales or capacity shocks, and an oil shock
+  after the forecast date is unknowable (oil is frozen at "today" — no
+  lookahead), which shows up as bias in the backtest's second split.
+* Search supports one-way and return trips with optional depart/return dates
+  (±3-day window); return combos pair any two carriers and the best-buy date
+  is chosen jointly for both legs.

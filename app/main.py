@@ -41,6 +41,11 @@ def forecast(origin: str, dest: str, airline: str, horizon: int = 120):
     return get_store().forecast(origin.upper(), dest.upper(), airline.upper(), horizon)
 
 
+@app.get("/api/quotes")
+def quotes(origin: str, dest: str):
+    return get_store().quotes(origin.upper(), dest.upper())
+
+
 @app.get("/api/trajectory")
 def trajectory(origin: str, dest: str, airline: str, flight_date: str):
     return get_store().trajectory_api(origin.upper(), dest.upper(),

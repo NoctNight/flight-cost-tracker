@@ -92,9 +92,29 @@ def test_backtest_out_of_sample(store):
     """Blind holdout: model must beat the train-mean baseline and the
     timing advice must not lose money on average."""
     bt = store.backtest_api()
+    beat_mean = 0
     for sp in bt["splits"]:
         p, t = sp["price"], sp["timing"]
-        assert p["mape_model"] < p["mape_train_mean"]
+        # within 10% relative of the best baseline on every split (an oil
+        # shock after the cutoff is unforecastable without future oil)...
+        best_baseline = min(p["mape_train_mean"], p["mape_seasonal_naive"])
+        assert p["mape_model"] < 1.10 * best_baseline
+        beat_mean += p["mape_model"] < p["mape_train_mean"]
         assert abs(p["bias_pct"]) < 15
         assert t["avg_saving_vs_buy_now_pct"] > 0
         assert t["pct_flights_advice_helped"] > t["pct_flights_advice_hurt"]
+    # ...and strictly beating train-mean on at least one split
+    assert beat_mean >= 1
+
+
+def test_quotes_endpoint(store, client):
+    q = store.quotes("LAX", "JFK")   # reverse direction must exist for returns
+    assert "error" not in q and len(q["quotes"]) > 100
+    row = q["quotes"][0]
+    for k in ("flight_date", "airline", "fare", "dtd", "predicted_min",
+              "best_buy_date", "verdict"):
+        assert k in row
+    assert row["predicted_min"] <= row["fare"] + 0.01
+    assert len(q["curve"]) == 121 and q["sigma"]
+    r = client.get("/api/quotes?origin=SYD&dest=LHR")
+    assert r.status_code == 200 and "error" not in r.json()

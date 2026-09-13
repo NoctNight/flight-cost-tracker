@@ -270,6 +270,8 @@ async function boot() {
   syncDest();
   $("#origin").addEventListener("change", syncDest);
   $("#go").addEventListener("click", runSearch);
+  $("#pill-oneway").addEventListener("click", () => setTrip("oneway"));
+  $("#pill-return").addEventListener("click", () => setTrip("return"));
   // forecast series select
   const opts = [];
   for (const r of META.routes) for (const a of r.airlines)
@@ -291,20 +293,99 @@ function syncDest() {
   $("#dest").innerHTML = dests.map(d => `<option>${d}</option>`).join("");
 }
 
+let TRIP = "oneway";
+function setTrip(t) {
+  TRIP = t;
+  $("#pill-oneway").setAttribute("aria-pressed", String(t === "oneway"));
+  $("#pill-return").setAttribute("aria-pressed", String(t === "return"));
+  $("#rdate-wrap").hidden = t !== "return";
+  runSearch();
+}
+
+const D1 = 86400000;
+const toDate = s => new Date(s + "T00:00:00");
+const addDays = (s, n) => new Date(toDate(s).getTime() + n * D1).toISOString().slice(0, 10);
+const dayDiff = (a, b) => Math.round((toDate(a) - toDate(b)) / D1);
+
+function filterLegs(quotes, today, dateStr, minDate) {
+  return quotes.filter(q => {
+    if (dateStr) return Math.abs(dayDiff(q.flight_date, dateStr)) <= 3;
+    if (minDate && dayDiff(q.flight_date, minDate) < 1) return false;
+    return dayDiff(q.flight_date, today) <= 90;
+  });
+}
+
+// predicted price of one leg for each remaining buy day t = 0..maxT (days from today)
+function legPath(q, quote, maxT) {
+  const c = q.curve, dtd = quote.dtd, out = [];
+  for (let t = 0; t <= maxT; t++) out.push(quote.fare * c[dtd - t] / c[dtd]);
+  return out;
+}
+
+function comboPredict(qO, qI, o, i) {
+  const maxT = Math.min(o.dtd - 1, i.dtd - 1);   // buy both legs together, before departure
+  const po = legPath(qO, o, maxT), pi = legPath(qI, i, maxT);
+  let best = 0, bestV = Infinity;
+  for (let t = 0; t <= maxT; t++) {
+    const v = po[t] + pi[t];
+    if (v < bestV) { bestV = v; best = t; }
+  }
+  return { total: o.fare + i.fare, predicted_min: bestV, best_t: best,
+           path: po.map((v, t) => v + pi[t]) };
+}
+
 async function runSearch() {
   $("#search-err").textContent = "";
-  const o = $("#origin").value, d = $("#dest").value, fd = $("#fdate").value;
+  const o = $("#origin").value, d = $("#dest").value;
+  const dd = $("#ddate").value, rd = $("#rdate").value;
   try {
-    const r = await api(`/api/search?origin=${o}&dest=${d}` + (fd ? `&flight_date=${fd}` : ""));
-    if (r.error) { $("#search-err").textContent = r.error; return; }
+    const qO = await api(`/api/quotes?origin=${o}&dest=${d}`);
+    if (qO.error) { $("#search-err").textContent = qO.error; return; }
     $("#results").hidden = false;
-    renderFlights($("#list-now"), r.cheapest_now, false, o, d);
-    renderFlights($("#list-future"), r.cheapest_eventually, true, o, d);
     $("#traj-block").hidden = true;
+    const today = qO.today;
+
+    if (TRIP === "oneway") {
+      const legs = filterLegs(qO.quotes, today, dd, null);
+      $("#results").querySelectorAll("h3")[0].textContent = "Cheapest right now";
+      $("#results").querySelectorAll("h3")[1].textContent = "Predicted cheapest by departure";
+      renderLegs($("#list-now"), [...legs].sort((a, b) => a.fare - b.fare).slice(0, 12), false, qO, o, d);
+      renderLegs($("#list-future"), [...legs].sort((a, b) => a.predicted_min - b.predicted_min).slice(0, 12), true, qO, o, d);
+    } else {
+      const qI = await api(`/api/quotes?origin=${d}&dest=${o}`);
+      if (qI.error) { $("#search-err").textContent = qI.error; return; }
+      const outs = filterLegs(qO.quotes, today, dd, null)
+        .sort((a, b) => a.fare - b.fare).slice(0, 40);
+      const ins = filterLegs(qI.quotes, today, rd, dd || today)
+        .sort((a, b) => a.fare - b.fare).slice(0, 40);
+      const combos = [];
+      for (const ol of outs) for (const il of ins) {
+        if (dayDiff(il.flight_date, ol.flight_date) < 1) continue;
+        combos.push({ out: ol, in: il, total: ol.fare + il.fare });
+      }
+      combos.sort((a, b) => a.total - b.total);
+      const top = combos.slice(0, 60);
+      for (const c of top) {
+        const p = comboPredict(qO, qI, c.out, c.in);
+        c.predicted_min = p.predicted_min;
+        c.best_buy_date = addDays(today, p.best_t);
+        c.expected_saving = c.total - p.predicted_min;
+        c.verdict = p.predicted_min < c.total * 0.97 ? "wait" : "book now";
+      }
+      $("#results").querySelectorAll("h3")[0].textContent = "Cheapest round trips right now";
+      $("#results").querySelectorAll("h3")[1].textContent = "Predicted cheapest if you time the purchase";
+      renderCombos($("#list-now"), combos.slice(0, 12), false, qO, qI, o, d);
+      renderCombos($("#list-future"), [...top].sort((a, b) => a.predicted_min - b.predicted_min).slice(0, 12), true, qO, qI, o, d);
+    }
   } catch (e) { $("#search-err").textContent = String(e); }
 }
 
-function renderFlights(ul, items, future, o, d) {
+function selectRow(li) {
+  document.querySelectorAll("#results li[aria-selected]").forEach(x => x.removeAttribute("aria-selected"));
+  li.setAttribute("aria-selected", "true");
+}
+
+function renderLegs(ul, items, future, qO, o, d) {
   ul.innerHTML = "";
   if (!items.length) { ul.innerHTML = "<li class='f-note'>no flights in window</li>"; return; }
   for (const f of items) {
@@ -321,50 +402,124 @@ function renderFlights(ul, items, future, o, d) {
       li.appendChild(chip);
       if (f.expected_saving > 1) {
         const sv = document.createElement("span"); sv.className = "saving";
-        sv.textContent = `save ~${fmt$(f.expected_saving)}`;
-        li.appendChild(sv);
+        sv.textContent = `save ~${fmt$(f.expected_saving)}`; li.appendChild(sv);
       }
-      const fare = document.createElement("span"); fare.className = "f-fare";
-      fare.textContent = fmt$(f.predicted_min);
-      fare.title = `now ${fmt$(f.fare_now)}, predicted minimum ${fmt$(f.predicted_min)}`;
-      li.appendChild(fare);
-    } else {
-      const fare = document.createElement("span"); fare.className = "f-fare";
-      fare.textContent = fmt$(f.fare); li.appendChild(fare);
     }
-    const open = () => {
-      ul.parentElement.parentElement.querySelectorAll("li[aria-selected]").forEach(x => x.removeAttribute("aria-selected"));
-      li.setAttribute("aria-selected", "true");
-      loadTrajectory(o, d, f.airline, f.flight_date);
-    };
+    const fare = document.createElement("span"); fare.className = "f-fare";
+    fare.textContent = fmt$(future ? f.predicted_min : f.fare);
+    if (future) fare.title = `now ${fmt$(f.fare)}`;
+    li.appendChild(fare);
+    const open = () => { selectRow(li); loadLegTrajectory(qO, f, o, d); };
     li.addEventListener("click", open);
     li.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
     ul.appendChild(li);
   }
 }
 
-async function loadTrajectory(o, d, airline, fdate) {
-  const r = await api(`/api/trajectory?origin=${o}&dest=${d}&airline=${airline}&flight_date=${fdate}`);
-  if (r.error) return;
+function renderCombos(ul, items, future, qO, qI, o, d) {
+  ul.innerHTML = "";
+  if (!items.length) { ul.innerHTML = "<li class='f-note'>no combinations in window</li>"; return; }
+  for (const c of items) {
+    const li = document.createElement("li");
+    li.tabIndex = 0; li.setAttribute("role", "button");
+    const dt = document.createElement("span"); dt.className = "f-date";
+    dt.textContent = `${shortDate(c.out.flight_date)} → ${shortDate(c.in.flight_date)}`;
+    dt.style.width = "128px";
+    const air = document.createElement("span"); air.className = "f-leg";
+    air.textContent = c.out.airline === c.in.airline ? AIRLINE(c.out.airline)
+      : `${c.out.airline} out · ${c.in.airline} back`;
+    li.append(dt, air);
+    if (future) {
+      const chip = document.createElement("span");
+      chip.className = "chip " + (c.verdict === "wait" ? "wait" : "now");
+      chip.textContent = c.verdict === "wait" ? `wait → ${shortDate(c.best_buy_date)}` : "book now";
+      li.appendChild(chip);
+      if (c.expected_saving > 1) {
+        const sv = document.createElement("span"); sv.className = "saving";
+        sv.textContent = `save ~${fmt$(c.expected_saving)}`; li.appendChild(sv);
+      }
+    }
+    const fare = document.createElement("span"); fare.className = "f-fare";
+    fare.textContent = fmt$(future ? c.predicted_min : c.total);
+    if (future) fare.title = `now ${fmt$(c.total)}`;
+    li.appendChild(fare);
+    const open = () => { selectRow(li); showComboTrajectory(qO, qI, c, o, d); };
+    li.addEventListener("click", open);
+    li.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+    ul.appendChild(li);
+  }
+}
+
+function bandAround(mean, sigma) {
+  const n = mean.length, lo = [], hi = [];
+  for (let t = 0; t < n; t++) {
+    const g = Math.sqrt(t / Math.max(n, 1) + 1e-9);
+    lo.push(mean[t] * Math.exp(-1.28 * sigma * g));
+    hi.push(mean[t] * Math.exp(1.28 * sigma * g));
+  }
+  return { lo, hi };
+}
+
+async function loadLegTrajectory(qO, f, o, d) {
+  // observed history exists server-side (and for snapshot top flights);
+  // otherwise predict client-side from the booking curve
+  try {
+    const r = await api(`/api/trajectory?origin=${o}&dest=${d}&airline=${f.airline}&flight_date=${f.flight_date}`);
+    if (!r.error) return drawTrajectory(r, o, d, f.airline, f.flight_date);
+  } catch (e) { /* fall through to client-side prediction */ }
+  const mean = legPath(qO, f, f.dtd - 1);
+  const dates = mean.map((_, t) => addDays(qO.today, t));
+  const { lo, hi } = bandAround(mean, qO.sigma[f.airline] || 0.05);
+  drawTrajectory({ fare_now: f.fare, observed: { dates: [], fare: [] },
+                   predicted: { dates, mean, lo, hi } }, o, d, f.airline, f.flight_date);
+}
+
+function showComboTrajectory(qO, qI, c, o, d) {
+  const p = comboPredict(qO, qI, c.out, c.in);
+  const dates = p.path.map((_, t) => addDays(qO.today, t));
+  const so = qO.sigma[c.out.airline] || 0.05, si = qI.sigma[c.in.airline] || 0.05;
+  const { lo, hi } = bandAround(p.path, Math.sqrt((so * so + si * si) / 2));
+  $("#traj-block").hidden = false;
+  $("#traj-title").textContent =
+    `${o} → ${d} → ${o} · ${shortDate(c.out.flight_date)} out (${c.out.airline}), ${shortDate(c.in.flight_date)} back (${c.in.airline})`;
+  $("#traj-sub").textContent =
+    `Round trip now ${fmt$(c.total)} · predicted minimum ${fmt$(p.predicted_min)} if bought ${dates[p.best_t]}`;
+  lineChart($("#traj-chart"), {
+    x: dates, yfmt: fmt$,
+    band: { lo, hi, color: css("--s1") },
+    markers: [{ i: p.best_t, label: "best buy" }],
+    series: [{ name: "predicted round-trip price by buy date", color: css("--s1"), values: p.path, dash: true }],
+  });
+}
+
+function drawTrajectory(r, o, d, airline, fdate) {
   $("#traj-block").hidden = false;
   $("#traj-title").textContent = `${o} → ${d} · ${AIRLINE(airline)} · departs ${fdate}`;
   const minI = r.predicted.mean.indexOf(Math.min(...r.predicted.mean));
   $("#traj-sub").textContent =
     `Now ${fmt$(r.fare_now)} · predicted minimum ${fmt$(r.predicted.mean[minI])} if bought ${r.predicted.dates[minI]}`;
-  // stitch observed + predicted on one x axis
+  const nO = r.observed.dates.length;
+  if (nO === 0) {
+    lineChart($("#traj-chart"), {
+      x: r.predicted.dates, yfmt: fmt$,
+      band: { lo: r.predicted.lo, hi: r.predicted.hi, color: css("--s1") },
+      markers: [{ i: minI, label: "best buy" }],
+      series: [{ name: "predicted price by buy date", color: css("--s1"), values: r.predicted.mean, dash: true }],
+    });
+    return;
+  }
   const xs = [...r.observed.dates, ...r.predicted.dates.slice(1)];
   const obs = [...r.observed.fare, ...Array(r.predicted.dates.length - 1).fill(null)];
-  const nO = r.observed.dates.length;
   const pred = [...Array(nO - 1).fill(null), r.fare_now, ...r.predicted.mean.slice(1)];
   const lo = [...Array(nO - 1).fill(null), r.fare_now, ...r.predicted.lo.slice(1)];
   const hi = [...Array(nO - 1).fill(null), r.fare_now, ...r.predicted.hi.slice(1)];
   lineChart($("#traj-chart"), {
     x: xs, yfmt: fmt$,
-    band: {lo, hi, color: css("--s1")},
-    markers: [{i: nO - 1 + minI, label: "best buy"}],
+    band: { lo, hi, color: css("--s1") },
+    markers: [{ i: nO - 1 + minI, label: "best buy" }],
     series: [
-      {name: "observed price", color: css("--s2"), values: obs},
-      {name: "predicted price by buy date", color: css("--s1"), values: pred, dash: true},
+      { name: "observed price", color: css("--s2"), values: obs },
+      { name: "predicted price by buy date", color: css("--s1"), values: pred, dash: true },
     ],
   });
 }
@@ -451,7 +606,7 @@ async function loadBacktest() {
       tile("Train-mean MAPE", p.mape_train_mean + "%", "baseline: series average"),
       tile("Bias", (p.bias_pct > 0 ? "+" : "") + p.bias_pct + "%", "OOS R\u00b2 (median series) " + p.r2_oos_median_series),
       tile("Timing: avg saving", (t.avg_saving_vs_buy_now_pct > 0 ? "+" : "") + t.avg_saving_vs_buy_now_pct + "%",
-           `vs buying immediately · ${t.n_flights} flights`),
+           `\u00b1${t.std_saving_pct}pp std · p10 ${t.saving_pct_percentiles.p10}% / p90 ${t.saving_pct_percentiles.p90}% · ${t.n_flights} flights`),
       tile("Advice helped", t.pct_flights_advice_helped + "%",
            `hurt ${t.pct_flights_advice_hurt}% · captured ${Math.round(t.capture_ratio * 100)}% of oracle`),
     );

@@ -39,6 +39,13 @@ ROUTES = {
                      {"amp": 0.15, "peak_doy": 352, "oil_mult": 1.6, "dtd_scale": 0.55}),
 }
 
+# Every route is flyable in both directions (return-trip search needs the
+# reverse leg): auto-add the reverse with the same economics.
+for _od, _spec in list(ROUTES.items()):
+    _rev = (_od[1], _od[0])
+    if _rev not in ROUTES:
+        ROUTES[_rev] = _spec
+
 # Observation grid: days-to-departure at which each flight's fare is "seen".
 DTD_GRID = np.arange(1, 91)  # daily quotes out to 90 days, like real scraped data
 

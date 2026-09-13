@@ -1,0 +1,353 @@
+{
+ "validation_grid": [
+  {
+   "harm": 2,
+   "trend": false,
+   "oil": true,
+   "buckets": "coarse",
+   "lag_smooth": 7,
+   "mape": 7.75,
+   "bias": 3.1
+  },
+  {
+   "harm": 2,
+   "trend": false,
+   "oil": true,
+   "buckets": "default",
+   "lag_smooth": 7,
+   "mape": 7.85,
+   "bias": 3.48
+  },
+  {
+   "harm": 2,
+   "trend": false,
+   "oil": true,
+   "buckets": "fine",
+   "lag_smooth": 7,
+   "mape": 7.87,
+   "bias": 3.54
+  },
+  {
+   "harm": 3,
+   "trend": false,
+   "oil": true,
+   "buckets": "coarse",
+   "lag_smooth": 7,
+   "mape": 7.95,
+   "bias": 3.13
+  },
+  {
+   "harm": 3,
+   "trend": false,
+   "oil": true,
+   "buckets": "default",
+   "lag_smooth": 7,
+   "mape": 8.04,
+   "bias": 3.5
+  },
+  {
+   "harm": 3,
+   "trend": false,
+   "oil": true,
+   "buckets": "fine",
+   "lag_smooth": 7,
+   "mape": 8.06,
+   "bias": 3.56
+  },
+  {
+   "harm": 1,
+   "trend": false,
+   "oil": true,
+   "buckets": "coarse",
+   "lag_smooth": 7,
+   "mape": 8.53,
+   "bias": 3.19
+  },
+  {
+   "harm": 1,
+   "trend": false,
+   "oil": true,
+   "buckets": "default",
+   "lag_smooth": 7,
+   "mape": 8.63,
+   "bias": 3.57
+  },
+  {
+   "harm": 1,
+   "trend": false,
+   "oil": true,
+   "buckets": "fine",
+   "lag_smooth": 7,
+   "mape": 8.64,
+   "bias": 3.63
+  },
+  {
+   "harm": 2,
+   "trend": false,
+   "oil": false,
+   "buckets": "coarse",
+   "lag_smooth": 7,
+   "mape": 9.07,
+   "bias": 6.12
+  },
+  {
+   "harm": 2,
+   "trend": false,
+   "oil": false,
+   "buckets": "default",
+   "lag_smooth": 7,
+   "mape": 9.09,
+   "bias": 6.19
+  },
+  {
+   "harm": 2,
+   "trend": false,
+   "oil": false,
+   "buckets": "fine",
+   "lag_smooth": 7,
+   "mape": 9.09,
+   "bias": 6.2
+  },
+  {
+   "harm": 3,
+   "trend": false,
+   "oil": false,
+   "buckets": "coarse",
+   "lag_smooth": 7,
+   "mape": 9.22,
+   "bias": 6.14
+  },
+  {
+   "harm": 3,
+   "trend": false,
+   "oil": false,
+   "buckets": "default",
+   "lag_smooth": 7,
+   "mape": 9.23,
+   "bias": 6.21
+  },
+  {
+   "harm": 3,
+   "trend": false,
+   "oil": false,
+   "buckets": "fine",
+   "lag_smooth": 7,
+   "mape": 9.23,
+   "bias": 6.22
+  },
+  {
+   "harm": 1,
+   "trend": false,
+   "oil": false,
+   "buckets": "coarse",
+   "lag_smooth": 7,
+   "mape": 9.7,
+   "bias": 6.21
+  },
+  {
+   "harm": 1,
+   "trend": false,
+   "oil": false,
+   "buckets": "default",
+   "lag_smooth": 7,
+   "mape": 9.73,
+   "bias": 6.28
+  },
+  {
+   "harm": 1,
+   "trend": false,
+   "oil": false,
+   "buckets": "fine",
+   "lag_smooth": 7,
+   "mape": 9.73,
+   "bias": 6.29
+  },
+  {
+   "harm": 3,
+   "trend": true,
+   "oil": false,
+   "buckets": "coarse",
+   "lag_smooth": 7,
+   "mape": 10.12,
+   "bias": 3.48
+  },
+  {
+   "harm": 2,
+   "trend": true,
+   "oil": false,
+   "buckets": "coarse",
+   "lag_smooth": 7,
+   "mape": 10.24,
+   "bias": 1.68
+  },
+  {
+   "harm": 2,
+   "trend": true,
+   "oil": false,
+   "buckets": "default",
+   "lag_smooth": 7,
+   "mape": 10.3,
+   "bias": 2.27
+  },
+  {
+   "harm": 2,
+   "trend": true,
+   "oil": false,
+   "buckets": "fine",
+   "lag_smooth": 7,
+   "mape": 10.32,
+   "bias": 2.35
+  },
+  {
+   "harm": 3,
+   "trend": true,
+   "oil": false,
+   "buckets": "default",
+   "lag_smooth": 7,
+   "mape": 10.45,
+   "bias": 4.6
+  },
+  {
+   "harm": 3,
+   "trend": true,
+   "oil": false,
+   "buckets": "fine",
+   "lag_smooth": 7,
+   "mape": 10.52,
+   "bias": 4.77
+  },
+  {
+   "harm": 3,
+   "trend": true,
+   "oil": true,
+   "buckets": "coarse",
+   "lag_smooth": 7,
+   "mape": 10.79,
+   "bias": 5.46
+  },
+  {
+   "harm": 2,
+   "trend": true,
+   "oil": true,
+   "buckets": "coarse",
+   "lag_smooth": 7,
+   "mape": 11.14,
+   "bias": 5.23
+  },
+  {
+   "harm": 3,
+   "trend": true,
+   "oil": true,
+   "buckets": "default",
+   "lag_smooth": 7,
+   "mape": 11.16,
+   "bias": 6.4
+  },
+  {
+   "harm": 2,
+   "trend": true,
+   "oil": true,
+   "buckets": "default",
+   "lag_smooth": 7,
+   "mape": 11.19,
+   "bias": 5.46
+  },
+  {
+   "harm": 2,
+   "trend": true,
+   "oil": true,
+   "buckets": "fine",
+   "lag_smooth": 7,
+   "mape": 11.21,
+   "bias": 5.49
+  },
+  {
+   "harm": 3,
+   "trend": true,
+   "oil": true,
+   "buckets": "fine",
+   "lag_smooth": 7,
+   "mape": 11.23,
+   "bias": 6.54
+  },
+  {
+   "harm": 1,
+   "trend": true,
+   "oil": false,
+   "buckets": "coarse",
+   "lag_smooth": 7,
+   "mape": 13.05,
+   "bias": 5.0
+  },
+  {
+   "harm": 1,
+   "trend": true,
+   "oil": false,
+   "buckets": "default",
+   "lag_smooth": 7,
+   "mape": 13.06,
+   "bias": 4.99
+  },
+  {
+   "harm": 1,
+   "trend": true,
+   "oil": false,
+   "buckets": "fine",
+   "lag_smooth": 7,
+   "mape": 13.06,
+   "bias": 4.98
+  },
+  {
+   "harm": 1,
+   "trend": true,
+   "oil": true,
+   "buckets": "fine",
+   "lag_smooth": 7,
+   "mape": 13.4,
+   "bias": 5.96
+  },
+  {
+   "harm": 1,
+   "trend": true,
+   "oil": true,
+   "buckets": "default",
+   "lag_smooth": 7,
+   "mape": 13.41,
+   "bias": 5.99
+  },
+  {
+   "harm": 1,
+   "trend": true,
+   "oil": true,
+   "buckets": "coarse",
+   "lag_smooth": 7,
+   "mape": 13.44,
+   "bias": 6.11
+  }
+ ],
+ "best": {
+  "harm": 2,
+  "trend": false,
+  "oil": true,
+  "buckets": "coarse",
+  "lag_smooth": 3,
+  "mape": 7.73,
+  "bias": 3.06
+ },
+ "timing_best": {
+  "threshold": 1.0,
+  "avg_saving": 1.68,
+  "hurt_pct": 9.0,
+  "n": 2992
+ },
+ "test_price": {
+  "mape": 10.63,
+  "bias": -6.5
+ },
+ "test_timing": {
+  "threshold": 1.0,
+  "avg_saving": 1.64,
+  "hurt_pct": 10.1,
+  "n": 1768
+ }
+}

@@ -45,9 +45,15 @@ class Store:
 
         self.curve = M.fit_booking_curve(self.fares)
         self.index = M.daily_index(self.fares, self.curve)
-        self.series_models = M.fit_series_models(self.index)
         self.correlations = M.correlation_matrix(self.index)
         self.oil_analysis = M.oil_lag_analysis(self.index, self.oil["brent"])
+        oil_term = M.make_oil_term(
+            self.oil["brent"], self.oil_analysis["best_lag_days"],
+            self.index["flight_date"].min(),
+            self.today + pd.Timedelta(days=220), freeze_after=self.today)
+        self.series_models = M.fit_series_models(
+            self.index, oil_term, self.oil_analysis["elasticity"] or 0.0,
+            **M.MODEL_CONFIG)
 
     # ------------------------------------------------------------------ data
     def _load_fares(self) -> tuple[pd.DataFrame, str]:
@@ -174,6 +180,56 @@ class Store:
             "cheapest_eventually": best[:12],
         }
 
+    def quotes(self, origin: str, dest: str) -> dict:
+        """Latest quote per future (flight_date, airline) plus the
+        curve-implied predicted minimum and best buy date for each flight.
+        Search/filtering (dates, return combos) happens client-side."""
+        route = f"{origin}-{dest}"
+        r = self.fares[(self.fares["origin"] == origin) & (self.fares["dest"] == dest)]
+        if r.empty:
+            return {"error": f"no data for {route}"}
+        recent = r[r["search_date"] >= self.today - pd.Timedelta(days=2)]
+        snap = (recent.sort_values("search_date")
+                      .groupby(["flight_date", "airline"], as_index=False).last())
+        snap = snap[snap["flight_date"] > self.today]
+
+        dgrid = np.arange(0, 121)
+        cv = self.curve.value(dgrid, route)
+        # over buy days 1..dtd: cheapest remaining curve point and its dtd
+        cmin = np.minimum.accumulate(cv[1:])          # index i -> min over dtd 1..i+1
+        argc = np.zeros(len(cv) - 1, dtype=int)
+        best = 0
+        for i in range(len(cmin)):
+            if cv[1 + i] <= cv[1 + best]:
+                best = i
+            argc[i] = best + 1
+
+        out = []
+        for row in snap.itertuples():
+            dtd = int((row.flight_date - self.today).days)
+            if dtd < 1 or dtd > 120:
+                continue
+            ratio = float(cmin[dtd - 1] / cv[dtd])
+            pm = row.fare * ratio
+            bb_dtd = int(argc[dtd - 1])
+            out.append({
+                "flight_date": str(row.flight_date.date()),
+                "dow": row.flight_date.strftime("%a"),
+                "airline": row.airline,
+                "fare": _f(row.fare),
+                "dtd": dtd,
+                "predicted_min": _f(pm),
+                "best_buy_date": str((row.flight_date - pd.Timedelta(days=bb_dtd)).date()),
+                "expected_saving": _f(row.fare - pm),
+                "verdict": "wait" if pm < row.fare * 0.97 else "book now",
+            })
+        out.sort(key=lambda x: (x["flight_date"], x["airline"]))
+        sigma = {a: round(self.series_models[k].sigma, 4)
+                 for a in snap["airline"].unique()
+                 if (k := M.series_key(origin, dest, a)) in self.series_models}
+        return {"route": route, "today": str(self.today.date()),
+                "curve": [_f(v, 4) for v in cv], "sigma": sigma, "quotes": out}
+
     def _trajectory(self, origin: str, dest: str, airline: str,
                     flight_date: pd.Timestamp, fare_now: float) -> dict | None:
         """Predicted fare for each remaining buy date, anchored to the
@@ -240,7 +296,7 @@ class Store:
 
     def backtest_api(self) -> dict:
         if not hasattr(self, "_backtest"):
-            r = backtest.run(self.fares)
+            r = backtest.run(self.fares, self.oil["brent"])
             for sp in r["splits"]:  # honest R2: median across series, not pooled
                 med = float(np.median([x["r2_oos"] for x in sp["price"]["per_series"]]))
                 sp["price"]["r2_oos_median_series"] = round(med, 3)

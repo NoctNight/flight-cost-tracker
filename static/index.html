@@ -59,6 +59,12 @@ button.ghost{cursor:pointer;color:var(--ink-2);font-size:12px;padding:5px 10px;b
 button.ghost:hover{background:var(--wash)}
 button.ghost[aria-pressed=true]{background:var(--wash);color:var(--ink)}
 .arrow{color:var(--muted);font-size:16px}
+.pills{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.pill{font:inherit;font-size:13px;border:0;background:var(--surface);color:var(--ink-2);
+  padding:9px 14px;cursor:pointer}
+.pill[aria-pressed=true]{background:var(--ink);color:var(--page);font-weight:600}
+.dlab{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px}
+.f-leg{color:var(--ink-2)}
 /* result lists */
 .results{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:16px}
 @media(max-width:880px){.results{grid-template-columns:1fr}}
@@ -124,13 +130,19 @@ footer a{color:var(--ink-2)}
     <h2>Search a route</h2>
     <p class="hint">Cheapest fares on sale right now, and the flights predicted to end up cheapest if you time the purchase.</p>
     <div class="searchbar">
+      <div class="pills" role="group" aria-label="Trip type">
+        <button class="pill" id="pill-oneway" aria-pressed="true">One-way</button>
+        <button class="pill" id="pill-return" aria-pressed="false">Return</button>
+      </div>
       <select id="origin" aria-label="Origin"></select>
       <span class="arrow">→</span>
       <select id="dest" aria-label="Destination"></select>
-      <input type="date" id="fdate" aria-label="Flight date (optional)">
+      <label class="dlab">Depart <input type="date" id="ddate" aria-label="Departure date (optional)"></label>
+      <label class="dlab" id="rdate-wrap" hidden>Return <input type="date" id="rdate" aria-label="Return date (optional)"></label>
       <button class="primary" id="go">Search</button>
       <span id="search-err" class="err"></span>
     </div>
+    <p class="hint" style="margin:8px 0 0">Dates are optional — leave empty to scan the next 90 days. A set date searches ±3 days around it.</p>
     <div class="results" id="results" hidden>
       <div>
         <h3>Cheapest right now</h3>
