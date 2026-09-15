@@ -6,6 +6,16 @@ cheapest if you time the purchase** (and when to buy them).
 
 ![](docs/screenshot.png)
 
+## Coverage
+
+158 directional routes across 46 airports and 47 airlines (496 route×airline
+series): intra-Europe, intra-Asia, intra-Australia/NZ, and the long-haul
+markets between them (Europe↔Asia, Europe↔Australia, Asia↔Australia), plus a
+US domestic set. Routes are declared by region and haul length in
+`app/synthetic.py`; the economics — seasonal amplitude and peak hemisphere,
+oil sensitivity, and where the booking curve bottoms out — are derived from
+those tags, so adding a route is one line.
+
 ## Run it
 
 ```bash
@@ -51,6 +61,22 @@ All models run on a daily observation table
    The pooled argmax and the mean of per-series argmaxes give the average
    pass-through delay; a lagged OLS gives the elasticity
    (Δlog fare / Δlog Brent) and R² at the best lag.
+
+## Methodology write-up
+
+`docs/regression-methodology.pdf` documents every step — booking curve,
+index construction, oil lag and elasticity, the forecast design matrix,
+buy-timing, correlations and the validation protocol — with the estimators
+written out. Regenerate it with `python scripts/build_methodology_pdf.py`
+(it reads measured numbers out of `site/core.js`, so it cannot drift from
+the model).
+
+## Deploying
+
+`python scripts/build_static.py` writes `site/`: a fully static snapshot
+with `core.js` loaded up front and one lazily-loaded chunk per route, so the
+first paint stays ~280 KB regardless of network size. `vercel.json` serves
+it with no build step.
 
 ## Data — read this
 

@@ -23,7 +23,7 @@ MODEL_CONFIG = {
     "pool_by_route": True,  # one seasonal fit per route, per-series offsets
 }
 INDEX_AGG = "mean"        # daily index aggregation across a day's quotes
-DTD_BUCKETS = [0, 2, 4, 6, 9, 13, 18, 24, 31, 40, 52, 67, 83, 120]
+DTD_BUCKETS = [0, 2, 4, 6, 9, 13, 18, 24, 31, 40, 52, 67, 83, 105, 135, 181]
 
 
 def series_key(origin: str, dest: str, airline: str) -> str:
@@ -31,10 +31,25 @@ def series_key(origin: str, dest: str, airline: str) -> str:
 
 
 def add_keys(df: pd.DataFrame) -> pd.DataFrame:
+    """Attach route / series keys and days-to-departure.
+
+    origin/dest/airline arrive as categoricals (the table is ~500 series over
+    millions of rows), so build the keys once per category combination and
+    map, rather than concatenating strings row by row."""
     df = df.copy()
-    df["series"] = df["origin"] + "-" + df["dest"] + ":" + df["airline"]
-    df["route"] = df["origin"] + "-" + df["dest"]
-    df["dtd"] = (df["flight_date"] - df["search_date"]).dt.days
+    cols = ["origin", "dest", "airline"]
+    for c in cols:
+        if not isinstance(df[c].dtype, pd.CategoricalDtype):
+            df[c] = df[c].astype("category")
+    codes = df[cols].apply(lambda s: s.cat.codes)
+    combo = pd.MultiIndex.from_frame(df[cols].astype(object))
+    uniq = combo.unique()
+    route_map = {k: f"{k[0]}-{k[1]}" for k in uniq}
+    series_map = {k: f"{k[0]}-{k[1]}:{k[2]}" for k in uniq}
+    df["route"] = pd.Categorical([route_map[k] for k in combo])
+    df["series"] = pd.Categorical([series_map[k] for k in combo])
+    df["dtd"] = (df["flight_date"] - df["search_date"]).dt.days.astype("int16")
+    del codes
     return df
 
 
@@ -60,7 +75,7 @@ class BookingCurve:
 
 def fit_booking_curve(df: pd.DataFrame, buckets=None) -> BookingCurve:
     buckets = buckets or DTD_BUCKETS
-    d = df[(df["dtd"] >= 0) & (df["dtd"] < 120)].copy()
+    d = df[(df["dtd"] >= 0) & (df["dtd"] <= 180)].copy()
     d["logf"] = np.log(d["fare"])
     d["logf_dm"] = d["logf"] - d.groupby(["series", "flight_date"])["logf"].transform("mean")
     d["bucket"] = np.digitize(d["dtd"], buckets[1:-1])
@@ -91,7 +106,7 @@ def daily_index(df: pd.DataFrame, curve: BookingCurve, smooth: int = 7,
                 agg: str = "median") -> pd.DataFrame:
     """One row per (series, flight_date): booking-curve-normalised median fare.
     This is the 1-day-granularity series everything downstream uses."""
-    d = df[(df["dtd"] >= 0) & (df["dtd"] < 120)].copy()
+    d = df[(df["dtd"] >= 0) & (df["dtd"] <= 180)].copy()
     d["norm_fare"] = d["fare"] / curve.value(d["dtd"].to_numpy(), None)
     idx = (d.groupby(["series", "route", "airline", "flight_date"])
              ["norm_fare"].agg(agg).rename("fare").reset_index())
@@ -289,36 +304,62 @@ def fit_series_models(idx: pd.DataFrame,
 
 # ------------------------------------------------------------------ correlations
 
-def correlation_matrix(idx: pd.DataFrame, min_overlap: int = 120) -> dict:
+def correlation_matrix(idx: pd.DataFrame, groups: dict | None = None,
+                       min_overlap: int = 120, max_series: int = 26) -> dict:
     """Correlation between series' weekly-smoothed log fare *changes*
     (levels correlate trivially through shared seasonality; changes measure
-    co-movement)."""
-    piv = idx.pivot_table(index="flight_date", columns="series", values="fare_7d")
+    co-movement).
+
+    Summary statistics are computed over every pair. The matrices returned
+    for display are scoped to `groups` (name -> list of routes) and capped at
+    `max_series` per group, because a 500x500 heatmap is unreadable.
+    """
+    piv = idx.pivot_table(index="flight_date", columns="series",
+                          values="fare_7d", observed=True)
     logret = np.log(piv).diff(7)
     corr = logret.corr(min_periods=min_overlap)
     labels = list(corr.columns)
-    # summary stats requested: within-route (same path, different airlines)
-    # and within-airline (same airline, different paths)
+    C = corr.to_numpy()
+
     def parts(s):
         route, airline = s.split(":")
         return route, airline
+
+    meta = [parts(s) for s in labels]
     same_route, same_airline, cross = [], [], []
-    for i, a in enumerate(labels):
-        for b in labels[i + 1:]:
-            v = corr.loc[a, b]
-            if pd.isna(v):
+    for i in range(len(labels)):
+        for j in range(i + 1, len(labels)):
+            v = C[i, j]
+            if not np.isfinite(v):
                 continue
-            ra, aa = parts(a); rb, ab = parts(b)
-            if ra == rb:
+            if meta[i][0] == meta[j][0]:
                 same_route.append(v)
-            elif aa == ab:
+            elif meta[i][1] == meta[j][1]:
                 same_airline.append(v)
             else:
                 cross.append(v)
+
+    # per-group display matrices
+    counts = idx.groupby("series", observed=True)["fare"].count()
+    out_groups = {}
+    for name, routes in (groups or {}).items():
+        rset = set(routes)
+        members = [s for s in labels if s.split(":")[0] in rset]
+        if len(members) < 2:
+            continue
+        members = sorted(members, key=lambda s: -counts.get(s, 0))[:max_series]
+        members.sort()
+        sub = corr.loc[members, members].to_numpy()
+        out_groups[name] = {
+            "labels": members,
+            "matrix": [[None if not np.isfinite(v) else round(float(v), 3)
+                        for v in row] for row in sub],
+        }
+
     return {
-        "labels": labels,
-        "matrix": [[None if pd.isna(v) else round(float(v), 3) for v in row]
-                   for row in corr.to_numpy()],
+        "groups": out_groups,
+        "n_series": len(labels),
+        "n_pairs": len(same_route) + len(same_airline) + len(cross),
         "avg_same_route": round(float(np.mean(same_route)), 3) if same_route else None,
         "avg_same_airline": round(float(np.mean(same_airline)), 3) if same_airline else None,
         "avg_unrelated": round(float(np.mean(cross)), 3) if cross else None,

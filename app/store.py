@@ -45,7 +45,7 @@ class Store:
 
         self.curve = M.fit_booking_curve(self.fares)
         self.index = M.daily_index(self.fares, self.curve, agg=M.INDEX_AGG)
-        self.correlations = M.correlation_matrix(self.index)
+        self.correlations = M.correlation_matrix(self.index, self._corr_groups())
         self.oil_analysis = M.oil_lag_analysis(self.index, self.oil["brent"])
         oil_term = M.make_oil_term(
             self.oil["brent"], self.oil_analysis["best_lag_days"],
@@ -75,10 +75,35 @@ class Store:
     def _brent_series(self) -> pd.Series:
         return self.oil["brent"]
 
+    # ---------------------------------------------------------------- groups
+    def _region_pair(self, origin: str, dest: str) -> str:
+        ra = synthetic.REGION.get(origin, "??")
+        rb = synthetic.REGION.get(dest, "??")
+        a, b = sorted([ra, rb])
+        na = synthetic.REGION_NAMES.get(a, a)
+        nb = synthetic.REGION_NAMES.get(b, b)
+        return f"{na} \u2194 {nb}" if a != b else f"Within {na}"
+
+    def _corr_groups(self) -> dict:
+        groups: dict[str, list[str]] = {}
+        seen = set()
+        for r in (self.fares[["origin", "dest"]].astype(object)
+                  .drop_duplicates().itertuples()):
+            key = tuple(sorted([r.origin, r.dest]))
+            if key in seen:
+                continue
+            seen.add(key)
+            groups.setdefault(self._region_pair(r.origin, r.dest), []).append(
+                f"{r.origin}-{r.dest}")
+        return dict(sorted(groups.items()))
+
     # ------------------------------------------------------------------ meta
     def meta(self) -> dict:
-        routes = (self.fares.groupby(["origin", "dest"])["airline"]
-                  .agg(lambda s: sorted(s.unique())).reset_index())
+        combos = (self.fares[["origin", "dest", "airline"]].astype(object)
+                  .drop_duplicates())
+        routes = {}
+        for r in combos.itertuples(index=False):
+            routes.setdefault((r.origin, r.dest), []).append(r.airline)
         return {
             "data_source": self.data_source,
             "today": str(self.today.date()),
@@ -86,10 +111,14 @@ class Store:
                                   str(self.fares["search_date"].max().date())],
             "flight_date_max": str(self.fares["flight_date"].max().date()),
             "routes": [
-                {"origin": r.origin, "dest": r.dest, "airlines": r.airline}
-                for r in routes.itertuples()
+                {"origin": o, "dest": d, "airlines": sorted(a),
+                 "group": self._region_pair(o, d)}
+                for (o, d), a in sorted(routes.items())
             ],
             "airline_names": synthetic.AIRLINE_NAMES,
+            "airport_names": synthetic.AIRPORT_NAMES,
+            "airport_region": synthetic.REGION,
+            "region_names": synthetic.REGION_NAMES,
         }
 
     # -------------------------------------------------------------- forecast
@@ -189,8 +218,9 @@ class Store:
         r = self.fares[(self.fares["origin"] == origin) & (self.fares["dest"] == dest)]
         if r.empty:
             return {"error": f"no data for {route}"}
-        # 4-day lookback: beyond 90 days out the collector polls every 3rd day
-        recent = r[r["search_date"] >= self.today - pd.Timedelta(days=4)]
+        # 8-day lookback: the collector polls far-out horizons up to a week
+        # apart, so a shorter window would miss quotes for distant flights
+        recent = r[r["search_date"] >= self.today - pd.Timedelta(days=8)]
         snap = (recent.sort_values("search_date")
                       .groupby(["flight_date", "airline"], as_index=False).last())
         snap = snap[snap["flight_date"] > self.today]

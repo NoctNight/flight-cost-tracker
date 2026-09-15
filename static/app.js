@@ -253,6 +253,29 @@ function tile(lab, val, note) {
 /* ------------------------------------------------------------------- app */
 let META;
 const AIRLINE = c => (META && META.airline_names[c]) ? `${META.airline_names[c]} (${c})` : c;
+const PORT = c => (META && META.airport_names[c]) ? `${c} · ${META.airport_names[c]}` : c;
+
+// <optgroup>ed <option> list; groups keeps declaration order
+function fillGrouped(sel, items, { value, label, group }) {
+  sel.innerHTML = "";
+  const byGroup = new Map();
+  for (const it of items) {
+    const g = group(it);
+    if (!byGroup.has(g)) byGroup.set(g, []);
+    byGroup.get(g).push(it);
+  }
+  for (const [g, list] of byGroup) {
+    const og = document.createElement("optgroup");
+    og.label = g;
+    for (const it of list) {
+      const o = document.createElement("option");
+      o.value = value(it);
+      o.textContent = label(it);
+      og.appendChild(o);
+    }
+    sel.appendChild(og);
+  }
+}
 
 async function boot() {
   META = await api("/api/meta");
@@ -264,20 +287,28 @@ async function boot() {
   } else {
     badge.textContent = "REAL FARE DATA";
   }
-  // route selects
-  const origins = [...new Set(META.routes.map(r => r.origin))].sort();
-  $("#origin").innerHTML = origins.map(o => `<option>${o}</option>`).join("");
+  // route selects: airports grouped by region, labelled with city names
+  const regionOf = c => META.region_names[META.airport_region[c]] || "Other";
+  const origins = [...new Set(META.routes.map(r => r.origin))]
+    .sort((a, b) => (regionOf(a) + a).localeCompare(regionOf(b) + b));
+  fillGrouped($("#origin"), origins,
+    { value: c => c, label: PORT, group: regionOf });
   syncDest();
   $("#origin").addEventListener("change", syncDest);
   $("#go").addEventListener("click", runSearch);
   $("#pill-oneway").addEventListener("click", () => setTrip("oneway"));
   $("#pill-return").addEventListener("click", () => setTrip("return"));
-  // forecast series select
-  const opts = [];
-  for (const r of META.routes) for (const a of r.airlines)
-    opts.push(`${r.origin}-${r.dest}:${a}`);
-  $("#fc-series").innerHTML = opts.map(s => `<option value="${s}">${s.replace(":", "  ·  ")}</option>`).join("");
-  $("#fc-series").addEventListener("change", loadForecast);
+
+  // forecast: route then airline (496 series is too many for one list)
+  fillGrouped($("#fc-route"), META.routes,
+    { value: r => `${r.origin}-${r.dest}`,
+      label: r => `${r.origin} → ${r.dest}`, group: r => r.group });
+  $("#fc-route").addEventListener("change", () => { syncFcAirline(); loadForecast(); });
+  $("#fc-airline").addEventListener("change", loadForecast);
+  syncFcAirline();
+
+  $("#scope").textContent =
+    `${META.routes.length} routes · ${origins.length} airports`;
 
   loadForecast();
   loadBookingCurve();
@@ -289,8 +320,22 @@ async function boot() {
 
 function syncDest() {
   const o = $("#origin").value;
-  const dests = META.routes.filter(r => r.origin === o).map(r => r.dest).sort();
-  $("#dest").innerHTML = dests.map(d => `<option>${d}</option>`).join("");
+  const regionOf = c => META.region_names[META.airport_region[c]] || "Other";
+  const dests = META.routes.filter(r => r.origin === o).map(r => r.dest)
+    .sort((a, b) => (regionOf(a) + a).localeCompare(regionOf(b) + b));
+  fillGrouped($("#dest"), dests, { value: c => c, label: PORT, group: regionOf });
+}
+
+function syncFcAirline() {
+  const [o, d] = $("#fc-route").value.split("-");
+  const r = META.routes.find(x => x.origin === o && x.dest === d);
+  const sel = $("#fc-airline");
+  sel.innerHTML = "";
+  for (const a of (r ? r.airlines : [])) {
+    const opt = document.createElement("option");
+    opt.value = a; opt.textContent = AIRLINE(a);
+    sel.appendChild(opt);
+  }
 }
 
 let TRIP = "oneway";
@@ -409,14 +454,14 @@ function renderLegs(ul, items, future, qO, o, d, msg) {
       chip.className = "chip " + (f.verdict === "wait" ? "wait" : "now");
       chip.textContent = f.verdict === "wait" ? `wait → ${shortDate(f.best_buy_date)}` : "book now";
       li.appendChild(chip);
-      if (f.expected_saving > 1) {
+      if (f.verdict === "wait" && f.expected_saving > 1) {
         const sv = document.createElement("span"); sv.className = "saving";
         sv.textContent = `save ~${fmt$(f.expected_saving)}`; li.appendChild(sv);
       }
     }
     const fare = document.createElement("span"); fare.className = "f-fare";
-    fare.textContent = fmt$(future ? f.predicted_min : f.fare);
-    if (future) fare.title = `now ${fmt$(f.fare)}`;
+    fare.textContent = fmt$(future && f.verdict === "wait" ? f.predicted_min : f.fare);
+    if (future) fare.title = `now ${fmt$(f.fare)}, predicted minimum ${fmt$(f.predicted_min)}`;
     li.appendChild(fare);
     const open = () => { selectRow(li); loadLegTrajectory(qO, f, o, d); };
     li.addEventListener("click", open);
@@ -457,14 +502,14 @@ function renderCombos(ul, items, future, qO, qI, o, d, msg) {
       chip.className = "chip " + (c.verdict === "wait" ? "wait" : "now");
       chip.textContent = c.verdict === "wait" ? `wait → ${shortDate(c.best_buy_date)}` : "book now";
       li.appendChild(chip);
-      if (c.expected_saving > 1) {
+      if (c.verdict === "wait" && c.expected_saving > 1) {
         const sv = document.createElement("span"); sv.className = "saving";
         sv.textContent = `save ~${fmt$(c.expected_saving)}`; li.appendChild(sv);
       }
     }
     const fare = document.createElement("span"); fare.className = "f-fare";
-    fare.textContent = fmt$(future ? c.predicted_min : c.total);
-    if (future) fare.title = `now ${fmt$(c.total)}`;
+    fare.textContent = fmt$(future && c.verdict === "wait" ? c.predicted_min : c.total);
+    if (future) fare.title = `now ${fmt$(c.total)}, predicted minimum ${fmt$(c.predicted_min)}`;
     li.appendChild(fare);
     const open = () => { selectRow(li); showComboTrajectory(qO, qI, c, o, d); };
     li.addEventListener("click", open);
@@ -548,8 +593,9 @@ function drawTrajectory(r, o, d, airline, fdate) {
 }
 
 async function loadForecast() {
-  const [o, rest] = $("#fc-series").value.split("-");
-  const [d, a] = rest.split(":");
+  const [o, d] = $("#fc-route").value.split("-");
+  const a = $("#fc-airline").value;
+  if (!o || !d || !a) return;
   const r = await api(`/api/forecast?origin=${o}&dest=${d}&airline=${a}`);
   if (r.error) return;
   const tiles = $("#fc-tiles"); tiles.innerHTML = "";
@@ -632,6 +678,11 @@ async function loadBacktest() {
            `\u00b1${t.std_saving_pct}pp std · p10 ${t.saving_pct_percentiles.p10}% / p90 ${t.saving_pct_percentiles.p90}% · ${t.n_flights} flights`),
       tile("Advice helped", t.pct_flights_advice_helped + "%",
            `hurt ${t.pct_flights_advice_hurt}% · captured ${Math.round(t.capture_ratio * 100)}% of oracle`),
+      ...Object.entries(t.by_curve_shape || {}).map(([shape, v]) =>
+        tile(shape.replace(/ \(.*/, "") === "books early"
+               ? "Long-lead routes" : "Short-lead routes",
+             (v.avg_saving_pct > 0 ? "+" : "") + v.avg_saving_pct + "%",
+             `${shape.replace(/^[a-z ]+\(/, "").replace(")", "")} · helped ${v.helped_pct}% · n=${v.n.toLocaleString()}`)),
     );
     const btn = document.createElement("button");
     btn.className = "ghost"; btn.textContent = "Per-series table";
@@ -649,15 +700,31 @@ async function loadBacktest() {
   }
 }
 
+let CORR;
 async function loadCorr() {
-  const r = await api("/api/correlations");
+  CORR = await api("/api/correlations");
   const tiles = $("#corr-tiles"); tiles.innerHTML = "";
   tiles.append(
-    tile("Same route, different airline", fmt2(r.avg_same_route), "avg pairwise corr"),
-    tile("Same airline, different route", fmt2(r.avg_same_airline), "avg pairwise corr"),
-    tile("Unrelated pairs", fmt2(r.avg_unrelated), "baseline"),
+    tile("Same route, different airline", fmt2(CORR.avg_same_route), "avg pairwise corr"),
+    tile("Same airline, different route", fmt2(CORR.avg_same_airline), "avg pairwise corr"),
+    tile("Unrelated pairs", fmt2(CORR.avg_unrelated), "baseline"),
+    tile("Pairs measured", CORR.n_pairs.toLocaleString(), `${CORR.n_series} series`),
   );
-  heatmap($("#corr-chart"), r.labels, r.matrix);
+  const sel = $("#corr-group");
+  sel.innerHTML = "";
+  for (const name of Object.keys(CORR.groups)) {
+    const o = document.createElement("option");
+    o.value = name; o.textContent = name;
+    sel.appendChild(o);
+  }
+  sel.onchange = drawCorr;
+  drawCorr();
+}
+
+function drawCorr() {
+  const g = CORR.groups[$("#corr-group").value];
+  if (!g) return;
+  heatmap($("#corr-chart"), g.labels, g.matrix);
 }
 
 boot().catch(e => { $("#src-badge").textContent = "error"; console.error(e); });
