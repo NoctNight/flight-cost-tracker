@@ -29,8 +29,12 @@ def test_correlation_structure(store):
     """Airlines on the same route must co-move far more than unrelated pairs."""
     c = store.correlations
     assert c["avg_same_route"] > c["avg_unrelated"] + 0.3
-    n = len(c["labels"])
-    assert len(c["matrix"]) == n and len(c["matrix"][0]) == n
+    assert c["n_series"] > 100 and c["n_pairs"] > 1000
+    assert c["groups"], "no display groups"
+    for name, g in c["groups"].items():
+        n = len(g["labels"])
+        assert 2 <= n <= 26, f"{name} has {n} series"
+        assert len(g["matrix"]) == n and len(g["matrix"][0]) == n
 
 
 def test_booking_curve_shape(store):
@@ -118,3 +122,34 @@ def test_quotes_endpoint(store, client):
     assert len(q["curve"]) == 181 and q["sigma"]
     r = client.get("/api/quotes?origin=SYD&dest=LHR")
     assert r.status_code == 200 and "error" not in r.json()
+
+
+def test_network_coverage(store):
+    """Asia / Europe / Australia are covered in both directions."""
+    m = store.meta()
+    pairs = {(r["origin"], r["dest"]) for r in m["routes"]}
+    for o, d in [("SYD", "LHR"), ("LHR", "SIN"), ("SIN", "HKG"),
+                 ("LHR", "CDG"), ("SYD", "MEL"), ("MEL", "SIN")]:
+        assert (o, d) in pairs and (d, o) in pairs, f"{o}-{d} missing a direction"
+    groups = {r["group"] for r in m["routes"]}
+    assert {"Within Europe", "Within Asia", "Within Australia / NZ",
+            "Asia \u2194 Europe", "Asia \u2194 Australia / NZ",
+            "Australia / NZ \u2194 Europe"} <= groups
+    assert len(m["routes"]) > 120
+
+
+def test_long_haul_booked_earlier_than_short(store):
+    """Haul length should shift where the booking curve bottoms out."""
+    lh = store.booking_curve_api("SYD", "LHR")["multiplier"]
+    sh = store.booking_curve_api("LHR", "CDG")["multiplier"]
+    assert lh.index(min(lh)) > sh.index(min(sh))
+
+
+def test_every_future_flight_date_is_quotable(store):
+    """The poll cadence must leave no future date without a recent quote."""
+    import pandas as pd
+    for o, d in [("SYD", "SIN"), ("LHR", "NRT"), ("MAD", "BCN")]:
+        q = store.quotes(o, d)
+        dates = sorted({x["flight_date"] for x in q["quotes"]})
+        gap = pd.Series(pd.to_datetime(dates)).diff().dt.days.max()
+        assert gap == 1, f"{o}-{d} has a {gap}-day gap in quoted dates"

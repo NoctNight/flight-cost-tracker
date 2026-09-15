@@ -122,6 +122,7 @@ footer a{color:var(--ink-2)}
 <header>
   <h1>Farecast</h1>
   <span class="sub">flight price history, forecasts &amp; when to book</span>
+  <span id="scope" class="badge">…</span>
   <span id="src-badge" class="badge">loading…</span>
 </header>
 
@@ -170,7 +171,8 @@ footer a{color:var(--ink-2)}
         <p class="hint">Daily fare index (booking-window-normalised) per route &amp; airline; OLS on trend + annual Fourier seasonality + day-of-week. Band = 95%.</p>
       </div>
       <div class="controls">
-        <select id="fc-series" aria-label="Route and airline"></select>
+        <select id="fc-route" aria-label="Route"></select>
+        <select id="fc-airline" aria-label="Airline"></select>
         <button class="ghost" data-table-for="fc-chart" aria-pressed="false">Table</button>
       </div>
     </div>
@@ -218,7 +220,7 @@ footer a{color:var(--ink-2)}
     <div class="cardhead">
       <div>
         <h2>Out-of-sample validation</h2>
-        <p class="hint">Models refitted using only data before the cutoff (booking curve, index normalisation and regressions alike), then scored blind on the following period. Baselines: seasonal-naive = same date last year; train-mean = series average. Timing advice judged 60 days before each departure.</p>
+        <p class="hint">Models refitted using only data before the cutoff (booking curve, index normalisation and regressions alike), then scored blind on the following period. Baselines: seasonal-naive = same date last year; train-mean = series average. Timing advice is judged from a route-relative standing point — 30 days before that route's own booking-curve trough — and settles at the nearest quote actually observed.</p>
       </div>
     </div>
     <div class="row2" id="bt-splits"></div>
@@ -228,9 +230,12 @@ footer a{color:var(--ink-2)}
     <div class="cardhead">
       <div>
         <h2>Co-movement between series</h2>
-        <p class="hint">Correlation of weekly fare changes between every route×airline pair. Same-route pairs (airlines matching each other's prices) vs same-airline pairs (network-wide pricing).</p>
+        <p class="hint">Correlation of weekly fare changes. The tiles average <em>every</em> route×airline pair; the matrix shows one region group at a time, since a 496×496 grid is unreadable.</p>
       </div>
-      <button class="ghost" data-table-for="corr-chart" aria-pressed="false">Table</button>
+      <div class="controls">
+        <select id="corr-group" aria-label="Region group"></select>
+        <button class="ghost" data-table-for="corr-chart" aria-pressed="false">Table</button>
+      </div>
     </div>
     <div class="tiles" id="corr-tiles"></div>
     <div class="chart overflow" id="corr-chart"></div>

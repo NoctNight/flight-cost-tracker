@@ -88,32 +88,62 @@ def price_backtest(fares: pd.DataFrame, oil: pd.Series,
 
 
 def timing_backtest(fares: pd.DataFrame, cutoff: str, test_end: str,
-                    anchor_dtd: int = 60, sample_every_days: int = 7) -> dict:
+                    lead_days: int = 30, anchor_tol: int = 8,
+                    min_quotes: int = 8, sample_every_days: int = 7) -> dict:
+    """Stand some days before departure knowing only the train-fitted booking
+    curve, pick a buy day, and pay whatever was actually quoted then.
+
+    The standing point is route-relative: `lead_days` before that route's own
+    curve minimum, capped at the quote horizon. A fixed anchor would stand
+    *past* the optimum on long-haul routes (their curve bottoms out ~75 days
+    out vs ~46 short-haul), where the advice can only ever say "buy now" and
+    scores a trivial zero.
+
+    A real tracker samples horizons rather than quoting every flight every
+    day, so the anchor is the observed quote nearest the standing point
+    (within `anchor_tol`) and the purchase settles at the nearest quote to
+    the recommended day -- you can only buy at a price you actually saw.
+    """
     cutoff, test_end = pd.Timestamp(cutoff), pd.Timestamp(test_end)
     train = fares[(fares["search_date"] <= cutoff) & (fares["flight_date"] <= cutoff)]
     curve = M.fit_booking_curve(train)
 
-    test = fares[(fares["flight_date"] > cutoff + pd.Timedelta(days=anchor_dtd)) &
+    grid = np.arange(1, 181)
+    plan = {}          # route -> (anchor_dtd, recommended_dtd_from_anchor)
+    for route in fares["route"].astype(object).unique():
+        cv = curve.value(grid, route)
+        trough = int(grid[int(np.argmin(cv))])
+        anchor = min(trough + lead_days, 170)
+        cand = np.arange(1, anchor + 1)
+        plan[route] = (anchor, int(cand[int(np.argmin(curve.value(cand, route)))]),
+                       trough)
+
+    max_anchor = max(a for a, _, _ in plan.values()) + anchor_tol
+    test = fares[(fares["flight_date"] > cutoff + pd.Timedelta(days=max_anchor)) &
                  (fares["flight_date"] <= test_end) &
-                 (fares["dtd"] >= 1) & (fares["dtd"] <= anchor_dtd)]
+                 (fares["dtd"] >= 1) & (fares["dtd"] <= max_anchor)]
     # weekly sample of departure dates to keep this light
     test = test[test["flight_date"].dt.dayofyear % sample_every_days == 0]
 
-    res = []
-    for (s, fd), traj in test.groupby(["series", "flight_date"]):
+    res, per_trough = [], {}
+    for (s, fd), traj in test.groupby(["series", "flight_date"], observed=True):
+        route = str(traj["route"].iloc[0])
+        anchor_dtd, rec_dtd, trough = plan[route]
         traj = traj.sort_values("dtd", ascending=False)
-        if traj["dtd"].max() < anchor_dtd - 3 or len(traj) < 20:
-            continue
-        route = traj["route"].iloc[0]
         dtds = traj["dtd"].to_numpy()
         fares_t = traj["fare"].to_numpy()
+        a = int(np.argmin(np.abs(dtds - anchor_dtd)))
+        if abs(dtds[a] - anchor_dtd) > anchor_tol:
+            continue
+        dtds, fares_t = dtds[a:], fares_t[a:]      # only what is still buyable
+        if len(dtds) < min_quotes:
+            continue
         immediate = fares_t[0]
-        # recommendation from the train-fitted curve only
-        cand = np.arange(1, dtds[0] + 1)
-        rec_dtd = int(cand[np.argmin(curve.value(cand, route))])
         realized = fares_t[np.argmin(np.abs(dtds - rec_dtd))]
         oracle = fares_t.min()
         res.append((immediate, realized, oracle))
+        bucket = "books early (trough > 60d)" if trough > 60 else "books late (trough <= 60d)"
+        per_trough.setdefault(bucket, []).append((immediate - realized) / immediate * 100)
     if not res:
         return {"error": "no test trajectories"}
     a = np.array(res)
@@ -124,7 +154,12 @@ def timing_backtest(fares: pd.DataFrame, cutoff: str, test_end: str,
         capture = np.where(imm - orc > 1e-9, (imm - real) / (imm - orc), np.nan)
     dollars = imm - real
     return {
-        "anchor_dtd": anchor_dtd, "n_flights": int(len(a)),
+        "lead_days": lead_days,
+        "by_curve_shape": {
+            k: {"n": len(v), "avg_saving_pct": round(float(np.mean(v)), 2),
+                "helped_pct": round(float(np.mean(np.array(v) > 0) * 100), 1)}
+            for k, v in sorted(per_trough.items())},
+        "n_flights": int(len(a)),
         "avg_saving_vs_buy_now_pct": round(float(saving.mean()), 2),
         "median_saving_vs_buy_now_pct": round(float(np.median(saving)), 2),
         "std_saving_pct": round(float(saving.std(ddof=1)), 2),
