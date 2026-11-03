@@ -156,9 +156,9 @@ class SeriesModel:
 
     def design(self, dates: pd.DatetimeIndex) -> np.ndarray:
         t = (dates - self.t0).days.to_numpy(dtype=float) / 365.25
-        doy = dates.dayofyear.to_numpy(dtype=float)
+        doy = dates.day_of_year.to_numpy(dtype=float)
         x = 2 * np.pi * doy / 365.25
-        dow = dates.dayofweek.to_numpy()
+        dow = dates.day_of_week.to_numpy()
         dow_dum = np.zeros((len(dates), 6))
         for j in range(6):
             dow_dum[:, j] = (dow == j + 1).astype(float)

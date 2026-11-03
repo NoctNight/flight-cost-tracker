@@ -123,7 +123,7 @@ def timing_backtest(fares: pd.DataFrame, cutoff: str, test_end: str,
                  (fares["flight_date"] <= test_end) &
                  (fares["dtd"] >= 1) & (fares["dtd"] <= max_anchor)]
     # weekly sample of departure dates to keep this light
-    test = test[test["flight_date"].dt.dayofyear % sample_every_days == 0]
+    test = test[test["flight_date"].dt.day_of_year % sample_every_days == 0]
 
     res, per_trough = [], {}
     for (s, fd), traj in test.groupby(["series", "flight_date"], observed=True):

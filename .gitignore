@@ -7,3 +7,6 @@ package-lock.json
 data/fares_synthetic.parquet
 data/fares.parquet
 nohup.out
+.venv/
+.DS_Store
+.vercel

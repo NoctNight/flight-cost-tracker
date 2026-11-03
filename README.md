@@ -24,7 +24,7 @@ uvicorn app.main:app --port 8000
 # open http://localhost:8000
 ```
 
-Tests: `python -m pytest tests/`
+Tests: `pip install -r requirements-dev.txt && python -m pytest tests/`
 
 ## Models
 

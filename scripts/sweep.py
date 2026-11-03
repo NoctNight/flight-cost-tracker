@@ -130,7 +130,7 @@ def main():
         if tbest is None or r["avg_saving"] > tbest["avg_saving"]:
             tbest = r
 
-    print(f"\n=== FINAL: winning config, scored ONCE on held-out 2026 ===")
+    print("\n=== FINAL: winning config, scored ONCE on held-out 2026 ===")
     final = evaluate(fares, oil, "2025-12-31", "2026-01-01", TEST_END,
                      best["harm"], best["trend"], best["oil"],
                      best["buckets"], best["lag_smooth"])
