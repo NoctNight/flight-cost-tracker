@@ -257,8 +257,8 @@ def generate(
     oil_ref = float(oil_lagged.loc[start_ts:today].mean())
 
     flight_dates = pd.date_range(start_ts, today + pd.Timedelta(days=horizon_days), freq="D")
-    doy = flight_dates.dayofyear.to_numpy(dtype=float)
-    dow = flight_dates.dayofweek.to_numpy()
+    doy = flight_dates.day_of_year.to_numpy(dtype=float)
+    dow = flight_dates.day_of_week.to_numpy()
     # travel-date effects: Fri/Sun expensive, Tue/Wed cheap
     dow_fac = np.array([0.99, 0.955, 0.95, 0.99, 1.07, 0.97, 1.06])[dow]
     oil_dev = oil_lagged.reindex(flight_dates).to_numpy() - oil_ref

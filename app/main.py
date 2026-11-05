@@ -15,7 +15,7 @@ STATIC = Path(__file__).resolve().parent.parent / "static"
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     get_store()  # warm model cache
     yield
 

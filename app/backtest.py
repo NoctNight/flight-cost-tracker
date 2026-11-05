@@ -68,12 +68,16 @@ def price_backtest(fares: pd.DataFrame, oil: pd.Series,
             "bias_pct": float(np.mean((yhat - y) / y) * 100),
             "r2_oos": float(1 - np.sum((yhat - y) ** 2) / np.sum((y - y.mean()) ** 2)),
         })
-        pooled["y"].append(y); pooled["yhat"].append(yhat)
-        pooled["naive"].append(naive[ok]); pooled["mean"].append(mean_b)
+        pooled["y"].append(y)
+        pooled["yhat"].append(yhat)
+        pooled["naive"].append(naive[ok])
+        pooled["mean"].append(mean_b)
         pooled.setdefault("y_naive", []).append(y[ok])
 
-    y = np.concatenate(pooled["y"]); yhat = np.concatenate(pooled["yhat"])
-    yn = np.concatenate(pooled["y_naive"]); nv = np.concatenate(pooled["naive"])
+    y = np.concatenate(pooled["y"])
+    yhat = np.concatenate(pooled["yhat"])
+    yn = np.concatenate(pooled["y_naive"])
+    nv = np.concatenate(pooled["naive"])
     mb = np.concatenate(pooled["mean"])
     return {
         "cutoff": str(cutoff.date()), "test_end": str(test_end.date()),
@@ -126,7 +130,7 @@ def timing_backtest(fares: pd.DataFrame, cutoff: str, test_end: str,
     test = test[test["flight_date"].dt.day_of_year % sample_every_days == 0]
 
     res, per_trough = [], {}
-    for (s, fd), traj in test.groupby(["series", "flight_date"], observed=True):
+    for _, traj in test.groupby(["series", "flight_date"], observed=True):
         route = str(traj["route"].iloc[0])
         anchor_dtd, rec_dtd, trough = plan[route]
         traj = traj.sort_values("dtd", ascending=False)

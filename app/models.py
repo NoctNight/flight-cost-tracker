@@ -12,8 +12,6 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-REF_DTD_LO, REF_DTD_HI = 21, 45  # reference booking window for the daily index
-
 # Forecast-model configuration. Chosen on the validation split (2025) by
 # scripts/sweep.py -- see data/sweep_results.json; test (2026) scored once.
 MODEL_CONFIG = {
@@ -167,8 +165,7 @@ class SeriesModel:
             cols.append(t)
         for k in range(1, self.n_harm + 1):
             cols += [np.sin(k * x), np.cos(k * x)]
-        X = np.column_stack(cols + [dow_dum])
-        return X
+        return np.column_stack(cols + [dow_dum])
 
     def predict(self, dates: pd.DatetimeIndex) -> tuple[np.ndarray, np.ndarray]:
         X = self.design(dates)
@@ -397,7 +394,7 @@ def oil_lag_analysis(idx: pd.DataFrame, oil: pd.Series,
     mean_corr = np.array(mean_corr)
     best_lag = int(lags[np.nanargmax(mean_corr)])
     for s in piv.columns:
-        cs = np.array([corr_by_lag_series[l].get(s, np.nan) for l in lags])
+        cs = np.array([corr_by_lag_series[lag].get(s, np.nan) for lag in lags])
         if np.isfinite(cs).any():
             per_series_best[s] = int(lags[np.nanargmax(cs)])
     avg_series_lag = float(np.mean(list(per_series_best.values()))) if per_series_best else None

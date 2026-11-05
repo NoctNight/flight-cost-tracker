@@ -53,8 +53,8 @@ def test_forecast_sane(store):
     assert len(m) == 120
     hist_med = np.median([v for v in f["history"]["fare"] if v])
     assert all(0.3 * hist_med < v < 3 * hist_med for v in m)
-    assert all(l < mu < h for l, mu, h in
-               zip(f["forecast"]["lo"], m, f["forecast"]["hi"]))
+    assert all(lo < mu < hi for lo, mu, hi in
+               zip(f["forecast"]["lo"], m, f["forecast"]["hi"], strict=True))
 
 
 def test_search_and_trajectory(store):

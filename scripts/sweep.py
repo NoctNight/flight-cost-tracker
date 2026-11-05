@@ -30,7 +30,7 @@ CUTOFF, VAL_END, TEST_END = "2024-12-31", "2025-12-31", "2026-09-01"
 BUCKETS = {
     "coarse": [0, 3, 7, 14, 30, 60, 120],
     "default": M.DTD_BUCKETS,
-    "fine": list(range(0, 22)) + [24, 28, 32, 36, 40, 45, 50, 56, 63, 70, 80, 95, 120],
+    "fine": list(range(22)) + [24, 28, 32, 36, 40, 45, 50, 56, 63, 70, 80, 95, 120],
 }
 
 
@@ -74,21 +74,23 @@ def timing_eval(fares, cutoff, eval_end, threshold, anchor=60):
     test = fares[(fares["flight_date"] > cutoff + pd.Timedelta(days=anchor)) &
                  (fares["flight_date"] <= eval_end) &
                  (fares["dtd"] >= 1) & (fares["dtd"] <= anchor)]
-    test = test[test["flight_date"].dt.dayofyear % 7 == 0]
+    test = test[test["flight_date"].dt.day_of_year % 7 == 0]
     savings, hurt = [], 0
-    for (s, fd), traj in test.groupby(["series", "flight_date"]):
+    for _, traj in test.groupby(["series", "flight_date"]):
         traj = traj.sort_values("dtd", ascending=False)
         if traj["dtd"].max() < anchor - 3 or len(traj) < 20:
             continue
         route = traj["route"].iloc[0]
-        dtds = traj["dtd"].to_numpy(); f = traj["fare"].to_numpy()
+        dtds = traj["dtd"].to_numpy()
+        f = traj["fare"].to_numpy()
         cand = np.arange(1, dtds[0] + 1)
         cv = curve.value(cand, route)
         ratio = cv.min() / curve.value(np.array([dtds[0]]), route)[0]
         rec_dtd = int(cand[np.argmin(cv)]) if ratio < threshold else int(dtds[0])
         realized = f[np.argmin(np.abs(dtds - rec_dtd))]
         sv = (f[0] - realized) / f[0] * 100
-        savings.append(sv); hurt += sv < -0.5
+        savings.append(sv)
+        hurt += sv < -0.5
     a = np.array(savings)
     return {"threshold": threshold, "avg_saving": round(float(a.mean()), 2),
             "hurt_pct": round(float(hurt / len(a) * 100), 1), "n": len(a)}
@@ -140,10 +142,10 @@ def main():
           f"buckets={best['buckets']} lag_smooth={best['lag_smooth']})")
     print(f"  timing: threshold {tbest['threshold']} -> avg saving {final_t['avg_saving']}% "
           f"hurt {final_t['hurt_pct']}%")
-    json.dump({"validation_grid": rows, "best": best,
-               "timing_best": tbest, "test_price": final, "test_timing": final_t},
-              open(Path(__file__).resolve().parent.parent / "data" / "sweep_results.json", "w"),
-              indent=1)
+    with open(Path(__file__).resolve().parent.parent / "data" / "sweep_results.json", "w") as fh:
+        json.dump({"validation_grid": rows, "best": best,
+                   "timing_best": tbest, "test_price": final, "test_timing": final_t},
+                  fh, indent=1)
 
 
 if __name__ == "__main__":
